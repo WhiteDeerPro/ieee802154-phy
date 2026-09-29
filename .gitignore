@@ -30,3 +30,7 @@ tb/**/*.npy
 
 # ---- codewhale 运行状态（易变；reports/ 与 workflow-runs.jsonl 保留） ----
 .codewhale/state/
+
+# ---- Verdi 会话配置（工具持续改写；如需版本化用 git add -f） ----
+novas.conf
+novas.rc
