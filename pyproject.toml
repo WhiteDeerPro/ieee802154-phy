@@ -1,0 +1,15 @@
+[project]
+name = "communication"
+version = "0.1.0"
+description = "IEEE 802.15.4 PHY 数字基带：黄金模型 + cocotb RTL 验证环境"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=1.24.0",
+    "scipy>=1.10.0",
+    "matplotlib>=3.7.0",
+    "cocotb>=2.0",
+]
+
+[tool.uv]
+# 项目自身不打包成库，model/baseband 直接以源码路径运行
+package = false
