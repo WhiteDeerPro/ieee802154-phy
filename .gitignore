@@ -21,6 +21,7 @@ sim_build*/
 *.fsdb
 verdiLog/
 vfastLog/
+fsdb2vcdLog/
 novas.log
 
 # ---- 仿真数据 dump（可由 tb 脚本再生成；需要入库时 git add -f） ----

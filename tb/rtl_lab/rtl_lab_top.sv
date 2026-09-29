@@ -40,4 +40,14 @@ module rtl_lab_top (
         $dumpvars(0, rtl_lab_top);
     end
 
+`ifdef DUMP_FSDB
+    // FSDB dump: 需编译时链接 Verdi PLI 并定义 DUMP_FSDB (见 run.py --fsdb)。
+    // $fsdbDumpfile 由 novas PLI 提供 —— cocotb 的 Python TB 里写不了系统任务,
+    // 所以只能放在这层透传模块里; 产出文件供 Verdi 直接打开 (-ssf rtl_lab.fsdb)。
+    initial begin
+        $fsdbDumpfile("rtl_lab.fsdb");
+        $fsdbDumpvars(0, rtl_lab_top);
+    end
+`endif
+
 endmodule
