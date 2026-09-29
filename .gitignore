@@ -34,3 +34,7 @@ tb/**/*.npy
 # ---- Verdi 会话配置（工具持续改写；如需版本化用 git add -f） ----
 novas.conf
 novas.rc
+
+# ---- analog: ngspice 数据导出（可由 .cir 再生成; 图 *.png 仍入库） ----
+analog/**/*.csv
+analog/*.csv
