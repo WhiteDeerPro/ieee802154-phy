@@ -20,6 +20,7 @@ if __name__ == "__main__":
     if "--fsdb" in sys.argv:
         build_args += [
             "+define+DUMP_FSDB",
+            "-kdb",   # 生成 KDB (simv.daidir): Verdi -dbdir 加载设计源码/层次用
             "-P", f"{FSDB_PLI_DIR}/novas.tab", f"{FSDB_PLI_DIR}/pli.a",
         ]
         # 运行时 simv 还要能加载 FSDB dumper 动态库 (libsscore_vcs201809.so)
