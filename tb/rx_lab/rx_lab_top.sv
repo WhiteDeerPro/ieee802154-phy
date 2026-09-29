@@ -56,4 +56,14 @@ module rx_lab_top (
         $dumpvars(1, rx_lab_top.u_dut.u_sync);   // 同步器内部状态: 扫描/锁定过程
     end
 
+`ifdef DUMP_FSDB
+    // FSDB dump: 需编译时链接 Verdi PLI 并定义 DUMP_FSDB (见 run.py --fsdb)。
+    // 与 VCD 的分层策略不同: fsdb 压缩率高 (同内容比 VCD 小 2 个数量级),
+    // 所以这里全层次 dump —— Verdi 里能看到完整例化树 (匹配滤波/同步/解扩/解帧)。
+    initial begin
+        $fsdbDumpfile("rx_lab.fsdb");
+        $fsdbDumpvars(0, rx_lab_top);
+    end
+`endif
+
 endmodule
