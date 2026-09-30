@@ -76,6 +76,8 @@ class _Candidate:
     conf: float = 0.0                 # 最近一次观测质量
     born: int = 0
     state: str = "SEARCH"             # 本候选自己的状态
+    last_served: int = -1             # 上次被调度的帧（RRM 的"饥饿度"）
+    served_until: int = -1            # 服务窗口截止帧
 
 
 # ---------------------------------------------------------------------------
@@ -96,13 +98,15 @@ class LinkObserver:
       adapt       LOCK 态的 EMA 跟踪系数。
       max_cands   候选上限（超出按最久未用淘汰）。
       age_frames  未命中候选的存活帧数（LOCK 候选豁免）。
+      serve_window 服务窗口长度（帧）：单消旋器是单一资源，调度器给选中的
+                  候选连续 N 帧的 hint 独占期（RRM 的 dwell 分配，见 docs/16 §8）。
     """
 
     SEARCH, VERIFY, LOCK, LOST = "SEARCH", "VERIFY", "LOCK", "LOST"
 
     def __init__(self, q_floor=0.25, acquire_th=1.5, decay=0.92,
                  verify_hits=2, lost_run=3, tol_hz=10e3, adapt=0.25,
-                 max_cands=8, age_frames=200):
+                 max_cands=8, age_frames=200, serve_window=3):
         self.q_floor = float(q_floor)
         self.acquire_th = float(acquire_th)
         self.decay = float(decay)
@@ -112,6 +116,7 @@ class LinkObserver:
         self.adapt = float(adapt)
         self.max_cands = int(max_cands)
         self.age_frames = int(age_frames)
+        self.serve_window = int(serve_window)
 
         self.cands: list[_Candidate] = []
         self._frame = 0
@@ -154,8 +159,8 @@ class LinkObserver:
         # 4) 淘汰
         self._evict(idx)
 
-        # 5) 控制输出
-        return self._control(matched)
+        # 5) 控制输出（含服务调度, RRM 风格）
+        return self._control(matched, idx)
 
     # ------------------------------------------------------------- 内部
     def _weight(self, q):
@@ -202,32 +207,60 @@ class LinkObserver:
     def _key(self, cfo):
         return int(round(cfo / self.tol_hz))
 
-    def _control(self, matched):
+    def _control(self, matched, idx):
+        """服务调度（RRM 风格）+ 控制输出。
+
+        单消旋器 = 单一资源；多个分辨单元 = 多个待服务目标。
+        优先级：服务窗口未到期 > 刚匹配到的未锁定候选 > 最饿的未锁定候选 > LOCK 维持。
+        """
+        target = self._schedule(matched, idx)
+        if target is None:
+            return Control(state=self.SEARCH, want_raw=True, note="无可用状态")
+        if target.state == self.LOCK:
+            return Control(state=self.LOCK, cfo_hint=target.cfo,
+                           confidence=min(1.0, target.ev / (2 * self.acquire_th)),
+                           note=f"LOCK hits={target.hits}")
+        if target.state == self.VERIFY:
+            return Control(state=self.VERIFY, cfo_hint=target.cfo,
+                           confidence=min(0.5, target.ev / (2 * self.acquire_th)),
+                           note="试探消旋（粗）")
+        return Control(state=target.state, cfo_hint=target.cfo, confidence=0.0,
+                       note="服务窗口（探索）")
+
+    def _schedule(self, matched, idx):
+        """选本帧要服务的候选（决定输出 hint）。
+
+        优先级：服务窗口 > 本帧匹配到的候选（它就是对端）> 最饿的未锁定候选 > LOCK 维持。
+        修正记录（2026-10-01）：早期版本让"最饿的候选"无条件抢占，导致两个候选
+        互相抢占、都锁不住（test_scene_switch）。改为"匹配优先"后，调度自然跟着
+        帧流走（机会主义），失锁候选不再抢占。
+        """
+        # 1) 窗口未到期：继续服务
+        for c in self.cands:
+            if c.served_until >= idx:
+                return c
+        # 2) 本帧匹配到的候选：它就是对端，优先服务
         if matched is not None:
-            c = matched
-            if c.state == self.LOCK:
-                return Control(state=self.LOCK, cfo_hint=c.cfo,
-                               confidence=min(1.0, c.ev / (2 * self.acquire_th)),
-                               note=f"hits={c.hits}")
-            if c.state == self.VERIFY:
-                return Control(state=self.VERIFY, cfo_hint=c.cfo,
-                               confidence=min(0.5, c.ev / (2 * self.acquire_th)),
-                               note="试探消旋（粗）")
-            return Control(state=self.SEARCH, want_raw=True,
-                           note=f"候选累积 {c.ev:.2f}/{self.acquire_th}")
-        # 未匹配：报告最相关的保留状态（下一帧很可能仍来自同一对端）
+            if matched.state != self.LOCK:
+                self._open_window(matched, idx)      # 趁热打铁
+            return matched
+        # 3) 无匹配：探索最饿的未锁定候选（近期出现过的才算）
+        hungry = [c for c in self.cands
+                  if c.state != self.LOCK and c.ev > 0.2
+                  and idx - c.last <= self.age_frames]
+        if hungry:
+            c = min(hungry, key=lambda x: (x.state == self.LOST, x.last_served))
+            self._open_window(c, idx)
+            return c
+        # 4) LOCK 维持（上一对端）
         locked = [c for c in self.cands if c.state == self.LOCK]
         if locked:
-            c = max(locked, key=lambda x: x.last)
-            return Control(state=self.LOCK, cfo_hint=c.cfo,
-                           confidence=min(1.0, c.ev / (2 * self.acquire_th)),
-                           note="hold（无本帧观测）")
-        lost = [c for c in self.cands if c.state == self.LOST]
-        if lost:
-            c = max(lost, key=lambda x: x.last)
-            return Control(state=self.LOST, cfo_hint=None, want_raw=True,
-                           note="重捕获中")
-        return Control(state=self.SEARCH, want_raw=True, note="无匹配")
+            return max(locked, key=lambda x: x.last)
+        return None
+
+    def _open_window(self, c, idx):
+        c.served_until = idx + self.serve_window - 1
+        c.last_served = idx
 
     # ------------------------------------------------------------- 热启动
     def warm_start(self, cfo, conf=1.0):

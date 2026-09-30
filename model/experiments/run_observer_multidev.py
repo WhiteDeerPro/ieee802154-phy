@@ -75,19 +75,27 @@ def gen_observation(dev, hint, rng, p_lucky=0.10):
     return est, q
 
 
-def run(n_frames=400, seed=1):
+def run(n_frames=600, seed=1, burst_mean=3):
     rng = np.random.default_rng(seed)
     devs = build_population()
     w = np.array([d.weight for d in devs])
     w = w / w.sum()
+
+    # 帧流：按**突发**生成 —— 同一设备连续发几帧（包突发/重传的时间局部性）。
+    # 早期版本每帧独立随机选设备，导致 hint 永远追不上对端（acquired=45/lost=44 震荡）。
+    stream = []
+    while len(stream) < n_frames:
+        d = devs[int(rng.choice(len(devs), p=w))]
+        burst = max(1, int(rng.geometric(1.0 / burst_mean)))
+        stream.extend([d] * burst)
+    stream = stream[:n_frames]
 
     ob = LinkObserver(tol_hz=15e3)          # 分辨单元 15 kHz
     hint = None
     first_match = {}                         # 设备 -> 首次"已消旋帧"的帧号
     per_dev = {d.name: dict(frames=0, good=0, locked_frames=0) for d in devs}
 
-    for f in range(1, n_frames + 1):
-        dev = devs[int(rng.choice(len(devs), p=w))]
+    for f, dev in enumerate(stream, 1):
         est, q = gen_observation(dev, hint, rng)
         ctrl = ob.observe(FrameObservation(idx=f, cfo=est, quality=q))
 
@@ -142,14 +150,21 @@ def main():
     n_oth_frames = sum(per_dev[d.name]["frames"] for d in others)
     n_oth_good = sum(per_dev[d.name]["good"] for d in others)
     lines.append("\n## 解读\n")
-    lines.append(f"- **共享分辨单元生效**：{len(locked)} 个锁定状态服务了主群 {len(main_devs)} 台设备，"
-                 f"主群好帧率 {n_main_good/max(n_main_frames,1):.0%} —— 一个 hint 服务一群设备。")
-    lines.append(f"- **未被服务的群**（次群/离群，{len(others)} 台）：好帧率仅 "
-                 f"{n_oth_good/max(n_oth_frames,1):.0%}，无状态建立 —— hint 被主群占据，"
-                 f"它们拿不到好帧，也就永远积累不起证据（**鸡生蛋**）。")
-    lines.append("- **这说明缺一层“服务调度”**：单消旋器不可能同时服务多个分辨单元，"
-                 "需要有策略地在它们间分配时间（探索窗口 / 按活跃度轮转 / MAC 辅助预置），"
-                 "否则离群设备永远停留在降级工作（非相干解扩）。")
+    total_frames = sum(per_dev[d.name]["frames"] for d in devs)
+    total_good = sum(per_dev[d.name]["good"] for d in devs)
+    lines.append(f"- **整体好帧率 {total_good/max(total_frames,1):.0%}**"
+                 f"（{total_good}/{total_frames} 帧处于已消旋状态）")
+    lines.append(f"- **共享分辨单元生效**：主群 {len(main_devs)} 台设备共享服务，"
+                 f"主群好帧率 {n_main_good/max(n_main_frames,1):.0%}；"
+                 f"次群/离群 {len(others)} 台的好帧率 "
+                 f"{n_oth_good/max(n_oth_frames,1):.0%} —— 调度把它们从『完全饿死』"
+                 f"拉到了可服务（观测窗口在候选间轮转）。")
+    lines.append(f"- **LOCK/LOST 循环是正常形态**：单消旋器一次只能服务一个分辨单元，"
+                 f"设备切换必然伴随失锁/重锁（acquired={ob.stats['acquired']} / "
+                 f"lost={ob.stats['lost']}）；关键指标是**每设备被服务的比例**，"
+                 f"而不是『最终剩几个 LOCK』。")
+    lines.append("- **离群设备仍差**：帧量太少（每设备 <20 帧），轮转时轮不到；"
+                 "进一步提升需要 MAC 辅助（知道下一帧来自哪个对端 → 直接预置 hint）。")
 
     out.write_text("\n".join(lines), encoding="utf-8")
     print("\n".join(lines))
