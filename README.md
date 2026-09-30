@@ -85,9 +85,15 @@ python model/experiments/run_ber.py                # BER vs 码片 SNR 曲线，
 python model/experiments/run_impairments.py        # CFO / 定时 / 多径 损伤曲线
 python model/experiments/run_quant.py              # ADC 量化位宽扫描 (4bit 假设验证) → out/ber/
 python model/experiments/run_sfo.py                # 采样率偏差 (SFO) 扫描: 帧长 × ppm → out/impairments/
+python model/experiments/run_sfo_fix.py            # SFO 修复方案对比: 只消旋 / 逆重采样 / Farrow 插值 → out/impairments/
+python model/experiments/run_joint_sfo_cfo.py      # 同源 ε 联合验证: CFO 消旋 + 逆 SFO 重采样 (127B 长帧, 40 ppm)
 python model/experiments/run_cfo_study.py          # CFO 分解: 判决环 vs 同步环 (谁先死) → out/cfo_study/
 python model/experiments/run_cfo_visual.py         # CFO 可视化专题: 成因/频谱/眼图/2ω 振荡 → out/cfo_visual/
 python model/experiments/run_cfo_fix.py            # CFO 修复闭环: 前导联合估计(对齐点+频偏) + 整帧消旋 → out/cfo_fix/
+python model/experiments/run_cfo_fft.py            # 单帧 256 点 FFT 的 CFO 估计 (模式发现的核心工具) → out/cfo_fft/
+python model/experiments/run_cfo_eye.py            # CFO 修正后的眼图 (浮点参考侧, 对照 tb/cfo_corr 的 RTL 版) → out/ref/
+python model/experiments/run_preamble_detect.py    # 前导/突发检测器四方法对比 (能量/双窗/自相关/匹配滤波) → out/preamble_detect/
+python model/experiments/run_preamble_mag.py       # 前导检测判据对比: 实部 vs 复相关模 → out/preamble_mag/
 python model/experiments/run_mc_model.py "-6,-4,-2,0,2" 2000
                                                    # 浮点模型蒙特卡洛 (RTL 侧见 tb/rx_chain_e2e/run_mc.py)
 python model/experiments/analyze_mc.py             # RTL vs 模型 BER 对比报告 + 图 → out/rtl_ber/
@@ -96,6 +102,10 @@ python model/experiments/run_frontend.py           # CFO / DC / I/Q 前端校正
 python model/experiments/run_multipath_eq.py       # 多径均衡收益: 基线 vs 前导LS+MMSE均衡 → out/impairments/
 python model/experiments/run_visual.py             # 全套可视化 → out/vis/（波形/频谱/星座/眼图/加扰/变频…）
 python model/experiments/run_eye_modulations.py    # 多调制眼图对比: BPSK/QPSK/4-ASK/16-QAM/O-QPSK × {理想, +AWGN, +AWGN+CFO} → out/vis/
+python model/experiments/run_oqpsk_comprehensive.py # OQPSK 完整可视化: 基带波形/调制信号/PSD/星座/EVM → out/oqpsk_visual/
+python model/experiments/run_e2e_file.py           # 全流程演练: README 文本 → 比特流 → 波形 → 损伤 → 还原 → out/vis/
+python model/experiments/run_pattern_lib.py        # 模式库验证: 多设备帧流的匹配/发现/淘汰 → out/pattern_lib/
+python model/experiments/run_pattern_link.py       # 模式库接入链路: two_stage vs pattern (跨帧记忆) → out/pattern_link/
 python model/experiments/bandpass_sampling_demo.py # 带通采样 + DDC 数学性质 → out/bandpass/
 ```
 
@@ -156,7 +166,8 @@ out/<实例名>/
 分层参考 CommPy（`channels/filters/modulation/impairments` 平铺 + 制式实例）与
 MATLAB Communications Toolbox（调制器/信道/同步器/均衡器对象）：
 
-- `pulses`        成形脉冲 + 匹配滤波
+- `modulation`    成形脉冲（半正弦 / 升余弦 / sine_burst）+ 匹配滤波 + 星座映射与成形
+- `filters`       窗函数法 FIR 设计 + 频响 / 阻带 / 占用带宽分析
 - `channels`      AWGN / 多径 / Rayleigh 信道
 - `impairments`   CFO/定时/DC/IQ/镜像干扰/量化/SFO 损伤注入 (纯函数 + `*_stage` 阶段工厂)
 - `sync`          消旋 `correct_cfo`（载波同步）
@@ -191,7 +202,11 @@ MATLAB Communications Toolbox（调制器/信道/同步器/均衡器对象）：
 实测：0~450 kHz 内估计误差 **< 11 Hz**（无噪）/ 0.03~0.05 kHz（有噪），消旋 **bit-true**；
 BER 从 0.33~0.79 全部回到零错误，前导相关峰（同步环）恢复 5.5 倍。出图见 `model/out/rtl_cfo/`，
 波形 `tb/cfo_corr/sim_build/cfo_corr.fst`（74 KB，信号单 `gtkwave_signals.tcl`）
-- **下一步**：把 `cfo_corr` 插进 RX 链（`rx_matched_filter` → **`cfo_rot`** → `preamble_sync`），做含 CFO 的整链 `test_e2e`
+- **RX 顶层集成**（`rtl/rx/rx_top.sv`，2026-09-29）：`ADC(12bit) → rx_matched_filter → cfo_rot → preamble_sync → despreader → rx_deframer` 的可综合顶层；`preamble_detect`（短窗归一化延迟自相关，对 CFO 免疫）已接入，当前作观测输出。验证链 `tb/rx_chain_e2e/mc_top_tb.sv`
+- **上层旋性管理**（`docs/12` 架构决策 + `model/upper/patterns.py` 参考实现）：单元只做消旋，旋性的发现 / 记忆 / 匹配 / 淘汰放上层或转发出去；待办 issue 见 `docs/14`（I-8…I-16）
+- **遗留**：自主触发（`preamble_detect` → `cfo_est`）尚未收敛（方案 C 后 25/50），当前交付为外部触发 ——
+专题总览见 `docs/15`，探索记录见 `docs/08` I-6，重写计划见 I-17
+- **下一步**：`docs/14` 的 I-13 —— 前导码片缓冲 + 上层读出口，随后 I-15 接口闭环联调
 
 ## 参考（README/文档级调研）
 

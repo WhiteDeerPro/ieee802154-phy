@@ -4,8 +4,8 @@
 > 中一个函数（或自然分组），可单独用 cocotb 与 Python 黄金模型 bit-true 比对。
 > 叶子原语在 TX/RX 两侧复用。
 >
-> **状态（2026-09-28）：TX 链闭环 + RX 链闭环（含 `cfo_est`/`cfo_rot` 频偏纠正）
-> + 连续帧接收支持；全部 cocotb 回归通过；RTL BER 蒙特卡洛平台已建成**
+> **状态（2026-10-01）：TX 链闭环 + RX 全链闭环 + CFO 修复闭环 + 顶层集成（`rx_top.sv`）；
+> 全部 cocotb 回归通过；RTL BER 蒙特卡洛平台已建成**
 > （`tb/rx_chain_e2e/mc_gen.py` / `mc_tb.sv` / `run_mc.py`，文件向量驱动）。
 > 2026-09-28 修复两个同步器设计缺陷（详见时序说明与 `model/out/rtl_ber/report.md`）：
 > ① `preamble_sync` ST_LOCK 无帧尾退出路径 → 连续帧不可接；
@@ -18,7 +18,11 @@
 > / `rx_deframer`（单元级: 符号流还原 PSDU + FCS 失败用例，2/2 PASS）。
 > 链级闭环 `test_rx_chain`（preamble_sync → despreader → rx_deframer 含噪整链还原 PSDU + FCS 校验）通过。
 > 全链端到端 `test_e2e`（`tb/rx_chain_e2e/`：ADC 12bit 量化 → MF → sync → despread → deframe）通过。
-> 下一步: DC/IQ 校正 RTL、低 SNR 同步判据修复、Phase 3 顶层集成。
+> CFO 修复闭环（`tb/cfo_corr/`，2026-09-27/29）：`cfo_est`（8 相位候选联合搜索，不依赖上游同步）
+> + `cordic_atan2` + `cfo_rot`；0~450 kHz 估计误差 < 11 Hz（无噪）/ 0.03~0.05 kHz（有噪），消旋 bit-true。
+> 顶层集成（`rtl/rx/rx_top.sv`，2026-09-29）：ADC → MF → cfo_rot → preamble_sync → despreader → rx_deframer；
+> `preamble_detect`（短窗延迟自相关，CFO 免疫）并联接入，当前作观测输出。
+> 下一步: 自主触发收敛（重写 `cfo_est` COLLECT 段，见 `docs/08` I-6）、DC/IQ 校正 RTL、低 SNR 同步判据修复。
 
 ## 目录结构
 
@@ -39,9 +43,16 @@ rtl/
                        #        (K_BLOCKS=4, ph_thresh/sfd_thresh 参数化, 无 PLL 前馈)
                        #        [2026-09-28] 16 候选全相位覆盖 + frame_done 帧尾闭环
                        #        (连续帧可收) + STUCK_TIMEOUT 假前导兑底
-    cfo_corr.sv        # CFO 估计（前导相位差分）+ 数字频偏纠正（复数旋转）
+    cfo_est.sv         # [done] CFO 联合估计: 8 相位候选搜对齐点 + 相位差分估频偏
+                       #        (不依赖上游同步; CHIP_OFF/NSMP_P/SKIP_T3 可调)
+    cordic_atan2.sv    # [done] 16 级向量模式 CORDIC (带象限预处理)
+    cfo_rot.sv         # [done] 整帧消旋: 24bit 相位累加器 + 256 点 LUT + 复乘; load/phase_inc/phase_off 接口
+    preamble_detect.sv # [done 2026-09-29] 短窗归一化延迟自相关前导检测器
+                       #        (DEC=8 降采样, 65 样本延迟线, |acc|>γ·pwr, 连续 2 次确认)
     despreader.sv      # 16 路码片相关 + |·| 幅值检测 argmax → 4bit 符号
     rx_deframer.sv     # [done] 去白化 + FCS 校验 + PHR 解析 → 字节流（单元级 + 链级 PASS）
+    rx_top.sv          # [done 2026-09-29] 可综合顶层: ADC(12bit) → MF → cfo_rot → preamble_sync
+                       #        → despreader → rx_deframer; CFO 触发选择(外部/内部检测器)
     rx_chain_e2e/      # [tb] 全链端到端: ADC(12bit) → MF → sync → despread → deframe
     rx_chain.sv        # [tb] RX 链级封装（preamble_sync + despreader + rx_deframer，test_rx_chain 用）
 tb/                    # 每个模块一个 cocotb 验证目录（照 tb/smoke 模板）
@@ -56,6 +67,14 @@ tb/                    # 每个模块一个 cocotb 验证目录（照 tb/smoke �
 | pn9_whiten | `pn9_whiten`（本批新增） | TX 白化、RX 去白化 | 随机字节流比对 |
 | crc16_fcs | `crc16_fcs`（本批新增） | TX 追加 FCS、RX 校验 | "123456789"→0x31C3 已知向量 + 随机比对 |
 | oqpsk_modulator | `modulate_oqpsk` | TX 独有 | 随机符号 → 16Msps I/Q 全采样比对 |
+| rx_matched_filter | `baseband.modulation.matched_filter` | RX 独有 | `tb/rx_matched_filter` + 链级 |
+| preamble_sync | `phy_802154.preamble_sync_mirror` | RX 独有 | `tb/preamble_sync`（含噪突发帧 bit-true） |
+| despreader | `baseband.spreading.despread` | RX 独有 | `tb/despreader`（16 路 argmax） |
+| cfo_est | `run_cfo_fix.estimate_cfo`（定点/流式版） | RX 独有 | `tb/cfo_corr`（0~450 kHz 扫频） |
+| cordic_atan2 | —（定点 atan2 原语） | cfo_est 子模块 | 经 `tb/cfo_corr` 间接验证 |
+| cfo_rot | `baseband.sync.correct_cfo` | RX 独有 | `tb/cfo_corr`（消旋 bit-true） |
+| preamble_detect | `run_preamble_detect`（归一化延迟自相关） | RX（当前作观测输出） | `tb/rx_chain_e2e` 顶层链（三 CFO 点 20/20） |
+| rx_top | —（顶层编排） | — | `tb/rx_chain_e2e/mc_top_tb.sv` |
 | rx_deframer | `rx_deframe_symbols`（去白化 → PHR 解析 → CRC 校验） | RX 独有 | 符号流注入：PSDU 字节流 / psdu_len / fcs_ok / frame_done 时序 + FCS 失败用例 |
 
 ## oqpsk_modulator 数据通路（Phase 1 交付）
@@ -112,5 +131,5 @@ sfd_thresh=3e13（SFD 峰 7.2e13，前导区最大 1.3e13——注意前导块�
 ## 刻意不做（本阶段）
 
 - AXI-Stream/APB 封装（规格书 §6 的接口层）——Phase 2 包壳，先用 valid/ready 跑通链路。
-- RX 全链已闭环到 `rx_deframer`（单元级 + 链级 `test_rx_chain` 通过）；`cfo_corr` 仍待建。
+- DC/IQ 校正 RTL、低 SNR 同步判据修复、自主触发收敛——见 `docs/08`（I-2/I-3/I-6）。
 - 异步复位树、时钟门控——Phase 3 低功耗课题。

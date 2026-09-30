@@ -1,0 +1,325 @@
+================================================================================
+  CFO CORRECTION ARCHITECTURE - IEEE 802.15.4 (Zigbee) RX BASEBAND
+================================================================================
+
+PROBLEM: Carrier Frequency Offset (CFO) from crystal mismatch
+- Spec: ±40 ppm worst-case → ±96 kHz @ 2.45 GHz carrier  
+- Manifests as: Phase rotation 2π·Δf·t in baseband
+- Critical impact: Preamble (128 µs) rotates 12.8 turns @ 96 kHz
+  → Coherent correlation peak COLLAPSES → Sync FAILS
+
+================================================================================
+  TWO-BLOCK SOLUTION: Estimate Once + Correct Continuously
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│  BLOCK 1: cfo_est.sv — Joint Estimation (Once per Frame)                │
+│  Cost: ~8K complex MAC, amortized 4 MAC/sample for 20-byte packet       │
+└─────────────────────────────────────────────────────────────────────────┘
+
+Input: i_in[20:0], q_in[20:0] (matched filter output, 16 MHz)
+       start (trigger from preamble_sync or external AGC)
+
+┌───────────────────────────────────────────────────────────────┐
+│  Stage 1: COLLECT (2048 cycles)                               │
+│  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  │
+│                                                                │
+│  For each of 8 candidate alignments p ∈ [0,7]:                │
+│                                                                │
+│  ┌──────────────────────────────────────────────────────┐    │
+│  │  1. Sample chips at alignment p:                     │    │
+│  │     v[m] = mf[p + m·SPS + offset[m]]  (256 chips)   │    │
+│  │                                                       │    │
+│  │  2. Remove known modulation (divide by ideal ref):   │    │
+│  │     z[m] = v[m] / c_ref[m]                          │    │
+│  │     → z[m] = pure phase (CFO-induced rotation)      │    │
+│  │     ★ TRICK 1: Removes ±18.09° ISI from pulse shape │    │
+│  │                                                       │    │
+│  │  3. Differential phase (span=2 chips, same rail):    │    │
+│  │     d[m] = z[m+2] · conj(z[m])                      │    │
+│  │     → phase of d[m] = 2π·Δf·1µs (constant if aligned)│   │
+│  │     ★ TRICK 2: I→I or Q→Q = constant 16-sample gap  │    │
+│  │                                                       │    │
+│  │  4. Accumulate:                                      │    │
+│  │     acc[p] = Σ d[m]  (126 terms, m=2..254, step=2)  │    │
+│  │     am[p]  = Σ |d[m]|₁ (L1 norm, for Q metric)      │    │
+│  └──────────────────────────────────────────────────────┘    │
+│                                                                │
+│  Output: acc[0..7], am[0..7] (48-bit accumulators)            │
+└────────────────────────────────────────────────────────────────┘
+
+┌───────────────────────────────────────────────────────────────┐
+│  Stage 2: CMP (1 cycle)                                       │
+│  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  │
+│                                                                │
+│  Phase consistency metric (CFO-blind quality):                │
+│     Q[p] = |acc[p]|₁ / am[p]                                  │
+│            ^^^^^^^^   ^^^^^^                                   │
+│            |Σd|        Σ|d|                                    │
+│                                                                │
+│  Aligned correctly  → all d[m] in phase → Q ≈ 1              │
+│  Aligned wrong      → random phases     → Q ≈ 1/√126 = 0.09  │
+│                                                                │
+│  Pick: p_hat = argmax(Q[0..7])                                │
+│        ★ TRICK 3: Quality check — est_ok = (Q[p_hat] ≥ 0.25) │
+│                                                                │
+└────────────────────────────────────────────────────────────────┘
+
+┌───────────────────────────────────────────────────────────────┐
+│  Stage 3: CORDA (26 cycles) — CORDIC atan2                   │
+│  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  │
+│                                                                │
+│  Frequency estimate:                                           │
+│     φ = arg(acc[p_hat]) = arg(Σ d[m])                        │
+│     f_hat = φ / (2π · 1µs)  (differential span = 1 µs)        │
+│     phase_inc = f_hat / FS  (per-sample increment)            │
+│                                                                │
+│  Unambiguous range: ±500 kHz (Nyquist of 1 µs diff)          │
+│  Measured accuracy: bias = -2.8 kHz, σ = 8.4 kHz @ SNR=-1dB  │
+│                                                                │
+└────────────────────────────────────────────────────────────────┘
+
+┌───────────────────────────────────────────────────────────────┐
+│  Stage 4: CORDB (26 cycles) — CORDIC atan2                   │
+│  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  │
+│                                                                │
+│  Initial phase φ₀ (for derotation reference alignment):       │
+│     φ₀ = arg(Σ z[m]) - 124·phase_inc                         │
+│          ^^^^^^^^^^^   ^^^^^^^^^^^^^^^^                        │
+│          center phase  correction to frame start              │
+│                                                                │
+│  Output: phase_off = φ₀ (loaded to cfo_rot on frame start)    │
+│                                                                │
+└────────────────────────────────────────────────────────────────┘
+
+Outputs: 
+  p_hat [2:0]           — Alignment point (chip phase 0-7)
+  phase_inc [23:0]      — Phase increment per sample (2π full scale)
+  phase_off [23:0]      — Initial phase at frame start
+  est_ok                — Quality flag (Q ≥ 0.25)
+  done (single pulse)   — Estimation complete
+
+Total latency: 2048 + 1 + 26 + 26 = 2101 cycles @ 16 MHz = 131 µs
+
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│  BLOCK 2: cfo_rot.sv — Derotation (Continuous, Per-Sample)              │
+│  Cost: 1 complex multiply per sample = 4 real mults + 2 adds            │
+└─────────────────────────────────────────────────────────────────────────┘
+
+Input: i_in[20:0], q_in[20:0] (matched filter output stream)
+       phase_inc[23:0], phase_off[23:0] (from cfo_est)
+       load (pulse to reset phase accumulator at frame start)
+
+┌───────────────────────────────────────────────────────────────┐
+│  Algorithm: out[n] = in[n] · exp(-j·n·phase_inc)             │
+│                                                                │
+│  ┌────────────────────────────────────────────────────────┐  │
+│  │  Phase accumulator:                                     │  │
+│  │    pacc[n] = pacc[n-1] + phase_inc  (24-bit, wraps)   │  │
+│  │    On load: pacc ← -phase_off (align to reference)    │  │
+│  │                                                         │  │
+│  │  LUT lookup (256 entries):                             │  │
+│  │    idx = pacc[23:16]  (upper 8 bits)                  │  │
+│  │    cos_val = COS_LUT[idx]  (16-bit)                   │  │
+│  │    sin_val = SIN_LUT[idx]  (16-bit)                   │  │
+│  │    → exp(-j·phase) = cos - j·sin                      │  │
+│  │                                                         │  │
+│  │  Complex multiply:                                      │  │
+│  │    i_out = (i_in · cos + q_in · sin) >> 15            │  │
+│  │    q_out = (q_in · cos - i_in · sin) >> 15            │  │
+│  │                                                         │  │
+│  │  ★ Why LUT + accumulator (not recursive rotation)?    │  │
+│  │    - Same cost as w[n]=w[n-1]·exp(-jθ) per sample    │  │
+│  │    - BUT: No error accumulation (LUT is constant)     │  │
+│  │    - Phase quantization: 2π/256 = 1.4° << CFO phase  │  │
+│  └────────────────────────────────────────────────────────┘  │
+│                                                                │
+└────────────────────────────────────────────────────────────────┘
+
+Output: i_out[20:0], q_out[20:0] (derotated, ready for despreader)
+        dv_out (data valid, delayed by 1 cycle)
+
+Latency: 1 cycle (pipelined multiply)
+Power: ~40 nJ per sample @ 16 MHz (estimated)
+
+
+================================================================================
+  TWO-PASS ARCHITECTURE IN RX_TOP
+================================================================================
+
+                      ADC (12-bit)
+                           ↓
+                  rx_matched_filter
+                     ↓         ↓
+            ┌────────┘         └─────────────┐
+            ↓                                 ↓
+     [PASS 1: Detection]            [Buffered for re-sync]
+            ↓                                 
+      preamble_sync                          
+        (may fail                             
+       with high CFO)                         
+            ↓                                 
+         detect                               
+            ↓                                 
+        ┌───┴───┐                             
+        │       │                             
+        ↓       ↓                             
+   [Internal] [External]                      
+    trigger    trigger                        
+        │       │                             
+        └───┬───┘                             
+            ↓                                 
+         cfo_est ←────── chip_off, skip_t3   
+            ↓                 (trigger config)
+    ┌───────┴─────────┐                       
+    ↓                 ↓                       
+ phase_inc       phase_off                    
+    ↓                 ↓                       
+    └────────┬────────┘                       
+             ↓                                 
+          cfo_rot ←──────── MF output (buffered)
+             ↓                                 
+     [PASS 2: Re-sync]                        
+             ↓                                 
+      preamble_sync                           
+      (on corrected)                          
+             ↓                                 
+         aligned!                              
+             ↓                                 
+       despreader                              
+             ↓                                 
+        rx_deframer                            
+             ↓                                 
+          MAC PSDU                             
+
+
+================================================================================
+  PERFORMANCE SUMMARY (from model/out/cfo_fix/)
+================================================================================
+
+CFO [kHz]   Raw BER      Fixed BER    Improvement
+─────────   ────────     ─────────    ───────────
+    0       7.37e-03     7.37e-03     —— (baseline)
+    5       7.37e-03     7.37e-03     —— (below threshold)
+   20       9.46e-03     7.37e-03     ✓ back to baseline
+   50       43.7%        7.37e-03     ✓✓ 59× improvement
+   96       48.1%        7.37e-03     ✓✓ 65× improvement
+  150       47.5%        3.21e-04     ✓✓ 1480× improvement
+  300       58.2%        5.61e-04     ✓✓ 1037× improvement
+  450       62.7%        1.28e-03     ✓✓ 490× improvement
+
+Estimation accuracy:
+  Bias:  -2.8 kHz (constant, independent of CFO)
+  Std:    8.4 kHz @ SNR = -1 dB (well below 62.5 kHz tolerance)
+  Range: ±500 kHz unambiguous (5× crystal worst-case)
+
+Conclusion: CFO correction RESTORES receiver to baseline performance
+            across entire crystal spec (and beyond).
+
+
+================================================================================
+  DIAGNOSTIC EXTENSION (cfo_est_diag.sv) — NEW
+================================================================================
+
+Additional outputs for debugging and monitoring:
+
+Q_cand[0:7] [15:0]      — Phase consistency for all candidates
+                          High Q (>0.6) → candidate aligned
+                          All Q < 0.25 → noise/no preamble
+
+peak_mag2_raw [31:0]    — Correlation peak before CFO correction
+peak_mag2_corrected     — After correction (should be higher)
+                          Ratio measures correction effectiveness
+
+p_second [2:0]          — Runner-up candidate alignment
+Q_second [15:0]         — Quality of second-best
+                          Q_best ≈ Q_second → multipath suspected
+
+high_confidence         — (Q_best - Q_second) > 0.3
+multipath_flag          — Multiple candidates have high Q
+                          → Two+ strong paths detected
+
+Use cases:
+  ✓ Debug sync failures (check Q values, multipath flag)
+  ✓ Monitor crystal drift (log phase_inc over time/temperature)
+  ✓ Assess channel quality (peak magnitudes → SNR estimate)
+
+Parameter: ENABLE_DIAG = 0 → all diagnostics disabled (zero area cost)
+
+
+================================================================================
+  COMPARISON: This Project vs. Industry
+================================================================================
+
+┌──────────────────┬─────────────────────┬──────────────────────────┐
+│ Approach         │ This Project        │ GNU Radio gr-ieee802-15-4│
+├──────────────────┼─────────────────────┼──────────────────────────┤
+│ Preamble sync    │ Coherent correlation│ Differential phase       │
+│                  │ (high sensitivity)  │ (CFO-immune)             │
+├──────────────────┼─────────────────────┼──────────────────────────┤
+│ Despreading      │ Non-coherent |·|    │ Hard-decision Hamming    │
+├──────────────────┼─────────────────────┼──────────────────────────┤
+│ CFO estimation   │ YES (preamble-based)│ NO (not needed)          │
+├──────────────────┼─────────────────────┼──────────────────────────┤
+│ CFO tolerance    │ 7.8 kHz (sync) /    │ N/A (differential)       │
+│                  │ 62.5 kHz (decision) │                          │
+├──────────────────┼─────────────────────┼──────────────────────────┤
+│ Correction cost  │ 1 cmplx mul/sample  │ —— (no correction)       │
+├──────────────────┼─────────────────────┼──────────────────────────┤
+│ SNR advantage    │ +3 dB (coherent sync│ —— (differential penalty)│
+│                  │ vs. differential)   │                          │
+└──────────────────┴─────────────────────┴──────────────────────────┘
+
+Trade-off: 
+  Coherent sync → Better sensitivity → REQUIRES CFO correction
+  Differential  → CFO-immune         → Gives up ~3 dB sensitivity
+
+This project chose: Better sensitivity → Must fix CFO → Did fix it.
+
+
+================================================================================
+  NEXT STEPS
+================================================================================
+
+Priority 1 (Immediate):
+  [Week 1-2] Complete rx_top integration (two-pass CFO path wiring)
+  [Week 2]   End-to-end system test with CFO sweep (0-150 kHz)
+  [Week 2]   Add diagnostic module (cfo_est_diag.sv integration)
+
+Priority 2 (If battery-powered):
+  [Week 3] Coarse-fine two-stage estimation (4× energy savings)
+  [Week 3] Clock gating for idle CFO estimator (99% duty-cycle reduction)
+
+Priority 3 (Skip unless use-case changes):
+  ⛔ Decision-directed tracking loop (not needed for short packets)
+  ⛔ Multi-frame learning (not needed for single-channel star network)
+  ⛔ FFT-based estimation (overkill for ±96 kHz spec)
+
+
+================================================================================
+  KEY TAKEAWAYS
+================================================================================
+
+1. CFO is THE dominant impairment — not because it breaks despreading
+   (it doesn't, we're non-coherent), but because it collapses the
+   coherent preamble correlation peak.
+
+2. Joint estimation (alignment + frequency together) breaks the
+   circular dependency deadlock (need timing to estimate frequency,
+   need frequency to get timing).
+
+3. Three tricks are critical: ISI removal, span-2 differential,
+   quality check. All learned from 踩坑 (debugging failures).
+
+4. Solution is cheap and one-shot: ~8K MAC once per frame + 1 complex
+   multiply per sample. No loops, no warmup, no FFT.
+
+5. Performance: 59-65× BER improvement @ 50-96 kHz CFO. Works to 450 kHz
+   (4.7× crystal spec). Residual error (±8 kHz) << tolerance (62.5 kHz).
+
+**Bottom line: CFO correction is MANDATORY for this receiver architecture.**
+**The implemented solution is optimal for the constraints (short packets,**
+**non-coherent despreading, ±96 kHz spec, one-shot acquisition).**
+
+================================================================================
