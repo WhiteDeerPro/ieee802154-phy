@@ -25,11 +25,12 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "tb" / "rx_chain_e2e"))
 sys.path.insert(0, str(ROOT / "model"))
 
+import _common                      # noqa: E402
 import mc_gen                       # noqa: E402
 import phy_802154 as phy            # noqa: E402
 from upper.patterns import PatternLibrary, load_reference   # noqa: E402
 
-OUT = ROOT / "model" / "out" / "pattern_lib"
+OUT = _common.out_dir("pattern_lib")       # model/out/pattern_lib/（已创建）
 SNR = 20
 DEV_CFOS = [0.0, 50e3, 150e3, 350e3]        # 4 台设备
 FRAMES_PER_DEV = 25

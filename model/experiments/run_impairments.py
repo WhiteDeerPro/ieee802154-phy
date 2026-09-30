@@ -24,10 +24,6 @@ run_impairments.py —— 非理想性定量仿真 v2
 输出: model/out/impairments/imp_cfo.png, model/out/impairments/imp_eps.png
 """
 
-import numpy as np
-import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
 import sys
 from pathlib import Path
 
@@ -35,13 +31,16 @@ from pathlib import Path
 # 在上一级的 model/, 而 Python 只自动把脚本自身目录加入 sys.path, 故显式引导。
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+import numpy as np
+
+import _common
 import chains
 import measure
 import phy_802154 as phy
 from baseband import impairments as imp
 
-OUT = Path(__file__).resolve().parent.parent / "out" / "impairments"
-OUT.mkdir(exist_ok=True)
+plt = _common.init()                          # Agg 后端 + 中文字体
+OUT = _common.out_dir("impairments")          # model/out/impairments/（已创建）
 
 PSDU_LEN = 20
 N_FRAMES = 600                    # 固定帧数: 600 x 216 bit = 129600 bit/配置

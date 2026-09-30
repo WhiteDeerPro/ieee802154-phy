@@ -24,27 +24,26 @@ run_oqpsk_comprehensive.py —— OQPSK 完整可视化
 运行: python model/experiments/run_oqpsk_comprehensive.py
 """
 
-import numpy as np
-import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
 import sys
 from pathlib import Path
 
 # 本脚本位于 model/experiments/ —— 库模块 (chains / measure / phy_802154 / visualize)
 # 在上一级的 model/, 而 Python 只自动把脚本自身目录加入 sys.path, 故显式引导。
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+import numpy as np
 from scipy import signal as sp_signal
 
 # 复用项目基础模块
+import _common
 import chains
 import measure
 import visualize
 from baseband import impairments, modulation
 from baseband.link import Chain, Signal
 
-OUT = Path(__file__).resolve().parent.parent / "out" / "oqpsk_visual"
-OUT.mkdir(parents=True, exist_ok=True)
+plt = _common.init()                          # Agg 后端 + 中文字体
+OUT = _common.out_dir("oqpsk_visual")         # model/out/oqpsk_visual/（已创建）
 
 # ===========================
 # 参数配置

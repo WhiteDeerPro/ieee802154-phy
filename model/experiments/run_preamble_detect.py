@@ -34,14 +34,13 @@ sys.path.insert(0, str(ROOT / "tb" / "rx_chain_e2e"))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import numpy as np
-import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
 
+import _common            # noqa: E402
 import mc_gen             # noqa: E402
 import phy_802154 as phy  # noqa: E402
 
-OUT = ROOT / "model" / "out" / "preamble_detect"
+plt = _common.init()                      # Agg 后端 + 中文字体
+OUT = _common.out_dir("preamble_detect")  # model/out/preamble_detect/（已创建）
 PREDEC = 8                     # 下采样倍数（定时精度只要求 ±1 码片 = 8 采样）
 PRE_LEN = 2048                 # 前导长度（采样）
 PERIOD = 256                   # 前导周期（32 码片 × 8 采样）

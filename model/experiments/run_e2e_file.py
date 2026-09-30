@@ -28,10 +28,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import numpy as np
-import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
 
+import _common
 import chains
 import measure
 import phy_802154 as phy
@@ -40,8 +38,8 @@ from baseband.link import Chain, Signal
 
 MODEL = Path(__file__).resolve().parent.parent   # model/ (脚本在 model/experiments/)
 ROOT = MODEL.parent                               # 仓库根 (读 README.md)
-OUT = MODEL / "out" / "vis"
-OUT.mkdir(parents=True, exist_ok=True)
+plt = _common.init()                       # Agg 后端 + 中文字体
+OUT = _common.out_dir("vis")               # model/out/vis/（已创建）
 SPS = phy.SPS
 
 # ---- 信道参数 ----

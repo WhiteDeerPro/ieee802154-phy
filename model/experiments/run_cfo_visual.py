@@ -24,20 +24,19 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import numpy as np
-import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
 
+import _common
 import measure
 import phy_802154 as phy
 import visualize
 from baseband import impairments as imp
 import run_cfo_fix as RCF
 
+plt = _common.init()                          # Agg 后端 + 中文字体
+
 FS = phy.SPS * phy.CHIP_RATE          # 16 MHz
 SPS = phy.SPS
-OUT = Path(__file__).resolve().parent.parent / "out" / "cfo_visual"
-OUT.mkdir(parents=True, exist_ok=True)
+OUT = _common.out_dir("cfo_visual")       # model/out/cfo_visual/（已创建）
 visualize.use_cjk_font()
 
 SEED = 7

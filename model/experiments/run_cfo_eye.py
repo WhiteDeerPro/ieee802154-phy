@@ -25,15 +25,15 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import numpy as np
-import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
 
+import _common
 import instance
 import phy_802154 as phy
 from baseband import channels as ch
 from baseband import impairments as imp
 import run_cfo_fix as RCF
+
+plt = _common.init()                          # Agg 后端 + 中文字体
 
 FS = phy.SPS * phy.CHIP_RATE
 SPS = phy.SPS
@@ -44,7 +44,7 @@ CHIP_SNR_DB = 8.0                # MF 后码片 SNR (802.15.4 口径)
 # MF 增益, 加上波形均值差异, 同样标称值下 O-QPSK 眼图比单载波干净 16 dB。
 CFO_HZ = 96e3
 PSDU_LEN = 20                    # 20 B -> 51 符号 -> 13056 采样, 够 500 条 × 16
-OUT_ROOT = Path(__file__).resolve().parent.parent / "out" / "ref"
+OUT_ROOT = _common.out_dir("ref")       # model/out/ref/（已创建）
 
 
 def fold(w, first_peak, period, n_traces):

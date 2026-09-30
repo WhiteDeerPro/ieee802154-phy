@@ -10,10 +10,6 @@ run_visuals.py —— 机制型可视化包
   5. vis_ber_scenarios.png  各损伤相对基线的 BER 代价是多少 dB?
 """
 
-import numpy as np
-import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
 import sys
 from pathlib import Path
 
@@ -21,6 +17,10 @@ from pathlib import Path
 # 在上一级的 model/, 而 Python 只自动把脚本自身目录加入 sys.path, 故显式引导。
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+import matplotlib   # 下面 matplotlib.colors.LogNorm 仍直接用本模块
+import numpy as np
+
+import _common
 import phy_802154 as phy
 from baseband import impairments as imp
 import chains
@@ -34,8 +34,8 @@ sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 # 中文字形统一交给 visualize (幂等, 找不到中文字体时静默回退), 不再逐图配置
 visualize.use_cjk_font()
 
-OUT = Path(__file__).resolve().parent.parent / "out" / "vis"
-OUT.mkdir(exist_ok=True)
+plt = _common.init()                       # Agg 后端 + 中文字体
+OUT = _common.out_dir("vis")               # model/out/vis/（已创建）
 
 
 # ---------- 固定一帧, 供所有静态可视化复用 ----------

@@ -26,10 +26,11 @@ sys.path.insert(0, str(ROOT / "tb" / "rx_chain_e2e"))
 sys.path.insert(0, str(ROOT / "model"))
 sys.path.insert(0, str(ROOT / "model" / "experiments"))
 
+import _common           # noqa: E402
 import mc_gen            # noqa: E402
 import phy_802154 as phy  # noqa: E402
 
-OUT = ROOT / "model" / "out" / "preamble_mag"
+OUT = _common.out_dir("preamble_mag")      # model/out/preamble_mag/（已创建）
 N_FRAMES = 20
 CFOS = [0.0, 10e3, 50e3, 100e3, 200e3, 450e3]
 SNR = 20

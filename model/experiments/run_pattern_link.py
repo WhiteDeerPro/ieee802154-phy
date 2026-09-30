@@ -23,11 +23,12 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "model"))
 
+import _common                                  # noqa: E402
 import chains                                   # noqa: E402
 from baseband import impairments as imp         # noqa: E402
 from upper.patterns import PatternLibrary, load_reference   # noqa: E402
 
-OUT = ROOT / "model" / "out" / "pattern_link"
+OUT = _common.out_dir("pattern_link")      # model/out/pattern_link/（已创建）
 SNR_CHIP = 18.0                 # 目标工作点 (README: -85 dBm 灵敏度 => 码片 SNR 18 dB)
 N_FRAMES = 40
 DEV_CFOS = [50e3, 150e3, 350e3]

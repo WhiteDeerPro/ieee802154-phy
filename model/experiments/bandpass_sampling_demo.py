@@ -16,14 +16,19 @@ bandpass_sampling_demo.py
 输出: model/out/bandpass_*.png + 终端定量结论
 """
 
-import numpy as np
-import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
+import sys
 from pathlib import Path
 
-OUT = Path(__file__).resolve().parent.parent / "out" / "bandpass"
-OUT.mkdir(exist_ok=True)
+# 本脚本位于 model/experiments/ —— 库模块 (chains / measure / phy_802154 / visualize)
+# 在上一级的 model/, 而 Python 只自动把脚本自身目录加入 sys.path, 故显式引导。
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+import numpy as np
+
+import _common
+
+plt = _common.init()                    # Agg 后端 + 中文字体
+OUT = _common.out_dir("bandpass")       # model/out/bandpass/（已创建）
 rng = np.random.default_rng(42)
 
 # ---------------- 全局参数 ----------------

@@ -27,17 +27,15 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import numpy as np
-import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
 
+import _common
 import chains
 import measure
 import phy_802154 as phy
 import visualize
 
-OUT = Path(__file__).resolve().parent.parent / "out" / "ber"
-OUT.mkdir(exist_ok=True)
+plt = _common.init()                       # Agg 后端 + 中文字体
+OUT = _common.out_dir("ber")               # model/out/ber/（已创建）
 
 PSDU_LEN = 20                      # 字节
 SNR_RANGE = range(-2, 8)           # 码片 SNR dB
