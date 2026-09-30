@@ -15,26 +15,17 @@
 module rx_top #(
     parameter W = 21,                                  // MF 输出位宽
     parameter PW = 24,                                 // 相位定点位宽 (满量程 2π)
-    parameter integer EST_PERIOD = 2048,               // (保留) CFO 估计轮转周期
     // |inc| 上限: 对估计算术留余量，但不放宽到物理上无意义的范围。
     // 450 kHz 时 phase_inc = 471859.2，原限 471859 会把它判超限 (实测: CFO=450 kHz 的
     // 正确估计 +448~453 kHz 因此全被丢弃，只能靠非相干解扩降级工作 31/50)。
     // 取 500 kHz 留出 ~50 kHz 余量。
     parameter signed [PW-1:0] INC_LIMIT = 24'sd524288,
-    // 一致性确认: 相邻两次估计相差在 INC_TOL 内才采纳。
-    // 动机 (实测): cfo_est 的**首次**估计不可靠 (CFO=0 时 -365 kHz, 100 kHz 时符号错 -103 kHz,
-    // 450 kHz 时 -22 kHz); 单次采纳会把错误值写进 inc_reg 并污染后续帧
-    // (100 kHz 自主触发 0/50)。不采纳是安全的 —— 未消旋时非相干解扩仍能降级工作。
-    // INC_TOL 默认 ~16 kHz (估计噪声实测 ~4 kHz)。
-    parameter signed [PW-1:0] INC_TOL   = 24'sd16777,
-    // 连续 INC_CONFIRM 次估计落在 INC_TOL 内才采纳。实测: 2 次不够 —— CFO=450 kHz 时
-    // -337.6/-341.2 kHz 两个「彼此自洽但都错」的估计会触发采纳 (31/50 -> 0/50)。
-    // 需要 3 次是因为错误序列很少能连续三次跟前。
-    parameter integer         INC_CONFIRM = 1,
     // 采纳前要求估计质量达标 (cfo_est 的 est_ok: 对齐峰占 8 候选总能量 >= 1/4)。
-    // 实测: 仅靠"两次一致"挡不住 CFO=450 kHz 时 -337/-341 kHz 这类**彼此自洽但都错**的
-    // 估计 (31/50 -> 0/50); 而"三次一致"会因未消旋下对齐漂移导致一致链断裂
-    // (100 kHz: 34/50 -> 0/50)。质量是能同时分开这两类序列的判据。
+    // 动机 (实测): cfo_est 的**首次**估计不可靠 (CFO=0 时 -365 kHz, 100 kHz 时符号错 -103 kHz,
+    // 450 kHz 时 -22 kHz); 单次采纳会把错误值写进 inc_reg 并污染后续帧。
+    // 试过的替代判据都不如质量门控: "两次一致"挡不住 CFO=450 kHz 时 -337/-341 kHz 这类
+    // **彼此自洽但都错**的估计 (31/50 -> 0/50); "三次一致"会因未消旋下对齐漂移导致一致链
+    // 断裂 (100 kHz: 34/50 -> 0/50)。质量是能同时分开这两类序列的判据。
     parameter                 EST_REQ_QUAL = 1'b1,
     // ---------------- 跨帧投票累积器 (acquisition) ----------------
     // 动机: 冷启动时单帧估计不可靠 —— 未消旋下每帧都是“无偏但有噪”的样本。
@@ -102,24 +93,20 @@ module rx_top #(
     wire [2:0]           p_hat;
     wire signed [PW-1:0] phase_inc, phase_off;
     reg  signed [PW-1:0] inc_reg;
-    reg  signed [PW-1:0] inc_prev;      // 上一次采纳范围合法的估计 (一致性确认用)
-    reg                  inc_prev_v;    // 上一次估计是否有效
-    reg  [3:0]           inc_agree_cnt; // 当前连续一致次数
     // 跨帧投票累积器: [−INC_LIMIT, +INC_LIMIT] 分 64 个 bin, 每估计一票
     reg  [4:0]           votes [0:63];
     integer              vk;
     wire [PW-1:0]        bin_off = phase_inc + INC_LIMIT - 1'b1;   // 偏到 [0, 2·INC_LIMIT)
     wire [5:0]           bin_now = bin_off[19:VOTE_SHIFT];        // 6 位 -> 64 bin
-    wire signed [PW-1:0] bin_ctr = {4'b0, bin_now, {VOTE_SHIFT{1'b0}}}
-                                   - INC_LIMIT + (24'sd1 <<< (VOTE_SHIFT-1));
     wire                 fd_int;         // deframer → sync 的帧尾闭环 (前向声明)
 
-    // 内部触发: sync 的 detect 上升沿 + 6 拍延迟。
+    // 内部触发: sync 的 detect 上升沿 + TRIG_DLY_N 拍延迟后启动 est_start。
     // detect 相对帧起点偏移实测 538±1 采样 (结构决定: ready 需连续 2 块=512 + 相位对齐),
-    // 比独立检测器 (±18) 精确一个量级。延迟 6 拍使收集窗起点落在整片边界 (544 = 68×8),
-    // 对应 EST_CHIP_OFF = 68 (偶数, 满足 cref 奇偶相位)。
+    // 比独立检测器 (±18) 精确一个量级。
+    // 延迟拍数与 chip_off 的联合标定见 model/out/cfo_trigger/report.md §3/§5 与
+    // docs/08 I-6 "再探"（相位约束: (触发相位) ≡ 1 mod 16）。
     localparam [14:0] TRIG_TIMEOUT  = 15'd20000;
-    localparam [3:0]  TRIG_DLY_N    = 4'd2;      // detect 后延迟 6 拍 (0..5)
+    localparam [3:0]  TRIG_DLY_N    = 4'd2;      // detect 上升沿后延迟拍数 (已标定)
 
     reg        det_d, trig_pend;
     reg [3:0]  trig_dly;
@@ -161,9 +148,6 @@ module rx_top #(
     always @(posedge clk) begin
         if (!rst_n) begin
             inc_reg   <= {PW{1'b0}};
-            inc_prev  <= {PW{1'b0}};
-            inc_prev_v <= 1'b0;
-            inc_agree_cnt <= 4'd0;
             for (vk = 0; vk < 64; vk = vk + 1) votes[vk] <= 5'd0;
         end
         // 门控: 物理范围外的估计直接丢弃 (保持旧值); 堵住"收集窗落在数据段"的垃圾估计
@@ -207,7 +191,9 @@ module rx_top #(
 
     // ---------------- 前导检测器 (短窗归一化延迟自相关) ----------------
     // 参考实验 model/experiments/run_preamble_detect.py: 该方法在 0–200 kHz CFO
-    // 下 Pd=1.00 且对 CFO 免疫。其输出经上升沿检测 + 帧间屏蔽驱动 est_start。
+    // 下 Pd=1.00 且对 CFO 免疫。
+    // 当前仅作观测输出 (pd_det)；实际驱动 est_start 的是 preamble_sync.detect 的上升沿
+    // (见上方 TRIG_DLY_N)。独立检测器接 est_start 因 cref 对齐问题未收敛 (docs/08 I-6/I-17)。
     preamble_detect #(.W(W)) u_pdet (
         .clk(clk), .rst_n(rst_n),
         .i_in(mf_i), .q_in(mf_q), .dv_in(mf_dv),
