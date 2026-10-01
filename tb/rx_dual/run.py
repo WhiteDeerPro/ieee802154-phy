@@ -12,13 +12,15 @@ if __name__ == "__main__":
         "rtl/common/half_sine_fir.sv",
         "rtl/common/pn9_whiten.sv",
         "rtl/common/crc16_fcs.sv",
-        "rtl/rx/rx_matched_filter.sv",   # 共享前端
-        "rtl/rx/cfo_rot.sv",
-        "rtl/rx/preamble_sync.sv",
-        "rtl/rx/preamble_lock.sv",       # 精简同步器（无扫描, 定时外置）
+        "rtl/rx/rx_matched_filter.sv",   # 共享前端: MF
+        "rtl/rx/preamble_sync.sv",       # 共享前端: 相位恢复（扫描）
+        "rtl/rx/deinterleave.sv",        # 共享前端: 持续去交错
+        "rtl/rx/cfo_rot.sv",             # 每通道: 码片级消旋
+        "rtl/rx/sfd_detect.sv",          # 每通道: SFD 定界（需消旋后）
         "rtl/rx/despreader.sv",
         "rtl/rx/rx_deframer.sv",
-        "rtl/rx/rx_backend.sv",          # 执行段（每通道一份）
-        "rtl/rx/rx_dual.sv",             # 共享前端 + 两个 backend
-        "tb/rx_dual/rx_dual_wrap.sv",    # 波形包装（$dumpfile/$dumpvars）
+        "rtl/rx/rx_chip_backend.sv",     # 每通道执行段
+        "rtl/rx/rx_frontend.sv",         # 共享: MF + 相位 + 去交错
+        "rtl/rx/rx_dual.sv",
+        "tb/rx_dual/rx_dual_wrap.sv",
     ], build_args=["+incdir+" + str(ROOT / "rtl" / "rx")]))
