@@ -13,7 +13,8 @@ if __name__ == "__main__":
         "rtl/common/pn9_whiten.sv",
         "rtl/common/crc16_fcs.sv",
         "rtl/rx/rx_matched_filter.sv",   # 共享前端: MF
-        "rtl/rx/preamble_sync.sv",       # 共享前端: 相位恢复（扫描）
+        "rtl/rx/preamble_sync.sv",
+    "rtl/rx/preamble_detect.sv",       # 共享前端: 相位恢复（扫描）
         "rtl/rx/deinterleave.sv",        # 共享前端: 持续去交错
         "rtl/rx/cfo_rot.sv",             # 每通道: 码片级消旋
         "rtl/rx/sfd_detect.sv",          # 每通道: SFD 定界（需消旋后）

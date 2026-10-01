@@ -64,6 +64,7 @@ module rx_chip_backend #(
         .frame_start(fs_ch)
     );
     assign frame_start = fs_ch;
+    assign frame_done  = fd_int;      // ⚠ 曾经漏接: 端口悬空 → 多帧统计拿不到帧尾
 
     // ---------------- 解扩 ----------------
     wire [3:0] sym;

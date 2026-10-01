@@ -15,6 +15,12 @@
 // （码片流因此断续）；故本模块只取它的**相位**, 用 latch 住的值驱动独立的
 // 持续去交错器（deinterleave）——码片流不再中断。
 //
+// ⚠ 相位必须**每帧**更新（不是只 latch 第一次）：帧到达相位逐帧不同
+// （gap 抖动 → mod 16 随机），“只锁一次”的代价是除首帧外全部衰减——
+// 实测 SFD 峰值 6.8e13 → 3.9e13 → 1.7e13 → 1.8e13（逐帧掉），只有首帧
+// 能定界。更新时机限定在**帧到达后的前导窗口**（见下），避开帧内重锁的污染。
+// 相位与旋性无关（同一份 IQ 的帧定时对所有通道相同）→ 仍可共享一份。
+//
 // SYNC_DIRECT：0 = 扫描取相位; 1 = 相位由 ext_lock_phase 直接给定（无扫描）。
 // ---------------------------------------------------------------------------
 `timescale 1ns/1ps
@@ -59,31 +65,44 @@ module rx_frontend #(
             assign scan_phase = ext_lock_phase;
         end else begin : g_scan
             // 只用它的相位输出: 码片端口悬空, frame_done 接 0（保持扫描, 不复位）
+            // scan_restart = 帧到达 → 每帧在本帧前导上重扫（帧到达相位逐帧不同）
             preamble_sync #(.W(W)) u_sync (
                 .clk(clk), .rst_n(rst_n),
                 .i_in(mf_i), .q_in(mf_q), .dv_in(mf_dv),
                 .ph_thresh(ph_thresh), .sfd_thresh(sfd_thresh),
                 .frame_done(1'b0),
                 .ext_lock_en(1'b0), .ext_lock_phase(4'd0),
+                .scan_restart(1'b0),
                 .chip_i(), .chip_q(), .chip_dv(),
                 .detect(detect), .frame_start(), .locked_phase(scan_phase)
             );
         end
     endgenerate
 
-    // ---------------- 相位 latch（首次锁定值）----------------
+    // ---------------- 相位 latch（每个 detect 上升沿重取）----------------
+    // 帧到达相位逐帧不同 ⇒ 相位必须**每帧**重取。已知残余问题：preamble_sync 在
+    // 未消旋输入上 SFD 永不触发，会周期性超时→重扫→在**帧内数据**上再次“锁定”，
+    // 若其 detect 上升沿落在帧中，phase_fix 会被改写成无意义值（该帧失败）。
+    // 曾试过“用 preamble_detect 的帧到达脉冲开窗（2800 采样）过滤”，在 MC 里把
+    // 帧成功率从 ~42% 提到 ~49%，但窗口时机与扫描锁定不匹配会破坏既有 cocotb
+    // 回归（单帧场景扫描需 >2800 采样）—— 暂回退，留作待打磨项（见 docs/16）。
     reg [3:0] phase_fix;
     reg       phase_valid;
+    reg       detect_d;
     always @(posedge clk) begin
         if (!rst_n) begin
             phase_fix   <= 4'd0;
             phase_valid <= 1'b0;
-        end else if (SYNC_DIRECT) begin
-            phase_fix   <= ext_lock_phase;
-            phase_valid <= 1'b1;
-        end else if (detect && !phase_valid) begin
-            phase_fix   <= scan_phase;      // 首个锁定相位
-            phase_valid <= 1'b1;
+            detect_d    <= 1'b0;
+        end else begin
+            detect_d <= detect;
+            if (SYNC_DIRECT) begin
+                phase_fix   <= ext_lock_phase;
+                phase_valid <= 1'b1;
+            end else if (detect && !detect_d) begin
+                phase_fix   <= scan_phase;      // 本帧的锁定相位（前导窗内）
+                phase_valid <= 1'b1;
+            end
         end
     end
     assign phase_out = phase_fix;

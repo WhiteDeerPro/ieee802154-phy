@@ -60,7 +60,8 @@ def mem_checksum(packed: np.ndarray) -> int:
 
 
 def gen_point(snr_db, n_frames, psdu_len, scale, seed, gap, tail, out_dir,
-              gap_jitter=16, cfo_hz=0.0, iq_gain_db=0.0, iq_phase_deg=0.0):
+              gap_jitter=16, cfo_hz=0.0, iq_gain_db=0.0, iq_phase_deg=0.0,
+              cfo_list=None):
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     rng = np.random.default_rng(seed)
@@ -111,13 +112,32 @@ def gen_point(snr_db, n_frames, psdu_len, scale, seed, gap, tail, out_dir,
     q_cat = np.concatenate(q_parts)
 
     # CFO: 模拟域复旋转 (量化前注入, 与 test_cfo_sweep 同位置);
-    # 相位以整条流起点为 0, 帧间连续 —— 与真实接收机看到的连续频偏一致
-    if cfo_hz:
-        n_idx = np.arange(len(i_cat))
-        ph = 2 * np.pi * cfo_hz * n_idx / (SPS * phy.CHIP_RATE)
-        cph, sph = np.cos(ph), np.sin(ph)
-        i_cat, q_cat = (i_cat * cph - q_cat * sph,
-                        i_cat * sph + q_cat * cph)
+    # 相位以整条流起点为 0, 帧间连续 —— 与真实接收机看到的连续频偏一致。
+    # cfo_list: 每帧一个 CFO (多设备场景: 设备交替发帧, 各自的晶振偏差不同);
+    #   相位仍逐段连续 (换设备即换斜率, 不重置相位) —— 非相干解扩对每符号内
+    #   的固定相位不敏感, 所以消旋器只靠**频率**匹配即可工作, 不需对齐初相。
+    cfo_arr = np.asarray(cfo_list if cfo_list is not None else cfo_hz,
+                         dtype=float)
+    cfo_per_frame = np.zeros(n_frames, dtype=float)
+    if np.any(cfo_arr):
+        if cfo_arr.ndim == 0:
+            cfo_per_frame = np.full(n_frames, float(cfo_arr))
+        else:
+            cfo_per_frame = np.resize(cfo_arr, n_frames)
+        bounds = np.append(frame_start, len(i_cat))
+        total_ph = 0.0
+        for f in range(n_frames):
+            lo, hi = int(bounds[f]), int(bounds[f + 1])
+            kk = np.arange(hi - lo)
+            ph = total_ph + 2 * np.pi * cfo_per_frame[f] * kk / (SPS * phy.CHIP_RATE)
+            cph, sph = np.cos(ph), np.sin(ph)
+            # 注意: 必须先 copy —— numpy 切片是**视图**, 否则第一行赋值会
+            # 污染第二行右值里的 i_seg（实测: 波形被错旋, 全帧解不出）
+            i_seg = i_cat[lo:hi].copy()
+            q_seg = q_cat[lo:hi].copy()
+            i_cat[lo:hi] = i_seg * cph - q_seg * sph
+            q_cat[lo:hi] = i_seg * sph + q_seg * cph
+            total_ph = float(ph[-1]) + 2 * np.pi * cfo_per_frame[f] / (SPS * phy.CHIP_RATE)
 
     # I/Q 失衡 (模拟域: 天线 → CFQ/IQ 失衡 → ADC; 与 baseband.impairments.add_iq_imbalance 同式)
     if iq_gain_db or iq_phase_deg:
@@ -150,6 +170,8 @@ def gen_point(snr_db, n_frames, psdu_len, scale, seed, gap, tail, out_dir,
     meta = dict(snr_db=snr_db, scale=scale, sigma=sigma, n_frames=n_frames,
                 psdu_len=psdu_len, seed=seed, gap=gap, tail=tail,
                 gap_jitter=gap_jitter, cfo_hz=cfo_hz,
+                cfo_per_frame=[float(c) for c in cfo_per_frame]
+                if np.any(cfo_arr) else None,
                 iq_gain_db=iq_gain_db, iq_phase_deg=iq_phase_deg,
                 n_smp=int(n_smp), clip_frac=n_clip / max(1, n_total),
                 es_h_fixed=ES_H_FIXED, tx_syms_per_frame=int(txs.shape[1]),
@@ -170,10 +192,16 @@ def main():
     ap.add_argument("--tail", type=int, default=600)
     ap.add_argument("--gap-jitter", type=int, default=16)
     ap.add_argument("--cfo-hz", type=float, default=0.0)
+    ap.add_argument("--cfo-list", type=str, default=None,
+                    help="逗号分隔的每帧 CFO (Hz), 循环使用 —— 多设备场景")
     ap.add_argument("--out-dir", required=True)
     a = ap.parse_args()
+    clist = None
+    if a.cfo_list:
+        clist = [float(x) for x in a.cfo_list.split(",") if x.strip()]
     meta = gen_point(a.snr, a.frames, a.psdu_len, a.scale, a.seed,
-                     a.gap, a.tail, a.out_dir, a.gap_jitter, a.cfo_hz)
+                     a.gap, a.tail, a.out_dir, a.gap_jitter, a.cfo_hz,
+                     cfo_list=clist)
     print(f"[mc_gen] snr={a.snr} dB frames={a.frames} n_smp={meta['n_smp']} "
           f"({meta['n_smp']*4/1048576:.1f} MB) clip={meta['clip_frac']*100:.3f}%")
 

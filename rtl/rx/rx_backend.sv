@@ -89,6 +89,7 @@ module rx_backend #(
                 .ph_thresh(ph_thresh), .sfd_thresh(sfd_thresh),
                 .frame_done(fd_int),
                 .ext_lock_en(ext_lock_en), .ext_lock_phase(ext_lock_phase),
+                .scan_restart(1'b0),
                 .chip_i(chip_i), .chip_q(chip_q), .chip_dv(chip_dv),
                 .detect(detect), .frame_start(frame_start), .locked_phase(locked_phase)
             );

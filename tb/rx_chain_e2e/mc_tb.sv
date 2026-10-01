@@ -73,7 +73,7 @@ module mc_tb #(
         .i_in(mf_i), .q_in(mf_q), .dv_in(mf_dv),
         .ph_thresh(ph_th), .sfd_thresh(sfd_th),
         .frame_done(frame_done),
-        .ext_lock_en(1'b0), .ext_lock_phase(4'd0),
+        .ext_lock_en(1'b0), .ext_lock_phase(4'd0), .scan_restart(1'b0),
         .chip_i(chip_i), .chip_q(chip_q), .chip_dv(chip_dv),
         .detect(detect), .frame_start(frame_start), .locked_phase(locked_phase)
     );

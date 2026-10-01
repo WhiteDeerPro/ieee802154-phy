@@ -1,0 +1,253 @@
+// dual_mc_tb.sv —— rx_dual 的蒙特卡洛 testbench（文件向量驱动, 不依赖 cocotb）
+// ---------------------------------------------------------------------------
+// 与 tb/rx_chain_e2e/mc_tb.sv 同形态（$fread 播放 + 事件 dump 文本 + Python 后处理），
+// 但 DUT = rx_dual：一份 ADC 流喂**两个旋性假设**的通道, 各出码流。
+//
+// 场景: 多设备交替发帧（mc_gen 的 cfo_list, 每帧一个 CFO = 一台设备的晶振偏差）,
+// A/B 两通道各带一组固定参数 —— 统计"单通道覆盖"与"双通道选优"的差异。
+//
+// 数据流:
+//   Python (mc_gen.py): 多帧定点波形（可为每帧指定不同 CFO）→ ADC 12bit → mem.bin
+//   VCS (本文件): 播放 → rx_dual → 事件 dump
+//   Python (run_dual_mc.py): 读 dump + GT → 按设备分组统计 FCS 成功率
+//
+// 事件 dump 格式（每行以采样索引 k 开头, 通道后缀 A/B）:
+//   SYMA <k> <sym>             通道 A 解扩符号
+//   FSTA <k>                   通道 A 定界（sfd_detect.frame_start）
+//   BYTA <k> <data>            通道 A deframer 输出字节
+//   FRMA <k> <psdu_len> <fcs>  通道 A 帧结束（frame_done）
+//   （同组 SYMB/FSTB/BYTB/FRMB）
+//   DET  <k> <phase_out>       共享前端锁定指示 + 相位
+//
+// plusargs:
+//   +MEM=<path>  +NSMP=<n>  +OUT=<path>             (必须)
+//   +CKS=<hex>   激励抽检（mc_gen 的 mem_cks）
+//   +PH=<dec>    +SFD=<dec>                         (门限, 默认同 mc_tb)
+//   +INCA=<dec>  +INCB=<dec>  两通道**码片级**相位增量（满量程 2π = 2^24）
+// ---------------------------------------------------------------------------
+`timescale 1ns/1ps
+module dual_mc_tb #(
+    parameter integer MAX_SMP = 1 << 25
+) ();
+    // —— 时钟 (16 MHz, 自生成) ——
+    reg clk = 0;
+    initial forever #31.25 clk = ~clk;
+
+    // —— plusargs 配置 ——
+    string       mem_path = "mem.bin";
+    string       out_path = "events.txt";
+    int unsigned nsmp = 0;
+    reg  [47:0]  ph_th  = 48'd200_000_000_000;
+    reg  [47:0]  sfd_th = 48'd30_000_000_000_000;
+    longint unsigned ph_arg = 0, sfd_arg = 0, inc_arg = 0;
+    reg  [31:0]  cks_arg = 32'h0;
+    int          cks_seen = 0;
+    reg signed [23:0] inc_a = 24'sd0, inc_b = 24'sd0;
+
+    // —— 激励数组 ——
+    reg [31:0] smp_mem [0:MAX_SMP-1];
+    int fd_mem = 0, fd_out = 0;
+    int got_bytes = 0;
+
+    // —— DUT 输入 ——
+    reg              rst_n = 0;
+    reg signed [11:0] i_in = 0, q_in = 0;
+    reg              dv_in = 0;
+
+    // —— DUT: rx_dual（共享前端 + 两通道执行段）——
+    wire [7:0] data_a, data_b, len_a, len_b;
+    wire       dvld_a, dvld_b, fcs_a, fcs_b, fd_a, fd_b;
+    wire [3:0] phase_out;
+    wire       detect;
+    wire signed [20:0] rot_a_i, rot_a_q, rot_b_i, rot_b_q;
+    wire       rot_a_dv, rot_b_dv;
+
+    rx_dual #(.W(21), .PW(24), .SYNC_DIRECT(1'b0)) dut (
+        .clk(clk), .rst_n(rst_n),
+        .adc_i(i_in), .adc_q(q_in), .adc_dv(dv_in),
+        .ph_thresh(ph_th), .sfd_thresh(sfd_th),
+        .ext_lock_en(1'b0), .ext_lock_phase(4'd0), .rot_load(1'b0),
+        .phase_inc_chip_a(inc_a), .phase_off_a(24'd0),
+        .phase_inc_chip_b(inc_b), .phase_off_b(24'd0),
+        .data_a(data_a), .data_valid_a(dvld_a), .psdu_len_a(len_a),
+        .fcs_ok_a(fcs_a), .frame_done_a(fd_a),
+        .data_b(data_b), .data_valid_b(dvld_b), .psdu_len_b(len_b),
+        .fcs_ok_b(fcs_b), .frame_done_b(fd_b),
+        .phase_out(phase_out), .detect(detect),
+        .rot_a_i(rot_a_i), .rot_a_q(rot_a_q),
+        .rot_b_i(rot_b_i), .rot_b_q(rot_b_q),
+        .rot_a_dv(rot_a_dv), .rot_b_dv(rot_b_dv),
+        .any_fcs_ok()
+    );
+
+    // —— 播放计数: 当前被 DUT 采样的激励索引 ——
+    int unsigned k = 0;
+
+    // —— 事件 dump (posedge 采样沿记录) ——
+    reg det_d = 0;
+    reg fcs_a_d = 0, fcs_b_d = 0;
+    always @(posedge clk) begin
+        if (fd_out != 0 && dv_in) begin
+            if (dvld_a)          $fwrite(fd_out, "BYTA %0d %0d\n", k, data_a);
+            if (fd_a)            $fwrite(fd_out, "FRMA %0d %0d %0d\n", k, len_a, fcs_a);
+            if (dvld_b)          $fwrite(fd_out, "BYTB %0d %0d\n", k, data_b);
+            if (fd_b)            $fwrite(fd_out, "FRMB %0d %0d %0d\n", k, len_b, fcs_b);
+            // fcs_ok 保持到下一帧, 用上升沿作为“本帧校验通过”的一次性事件
+            if (fcs_a && !fcs_a_d) $fwrite(fd_out, "FCSA %0d\n", k);
+            if (fcs_b && !fcs_b_d) $fwrite(fd_out, "FCSB %0d\n", k);
+            if (detect && !det_d) $fwrite(fd_out, "DET %0d %0d\n", k, phase_out);
+        end
+        det_d   <= detect;
+        fcs_a_d <= fcs_a;
+        fcs_b_d <= fcs_b;
+    end
+
+    // —— 符号/定界事件用层次探针（rx_dual 未引出这两个观测点）——
+    wire [3:0] sym_a = dut.u_be_a.u_desp.sym;
+    wire       sym_a_dv = dut.u_be_a.u_desp.sym_dv;
+    wire       fs_a = dut.u_be_a.fs_ch;
+    wire [3:0] sym_b = dut.u_be_b.u_desp.sym;
+    wire       sym_b_dv = dut.u_be_b.u_desp.sym_dv;
+    wire       fs_b = dut.u_be_b.fs_ch;
+    always @(posedge clk) begin
+        if (fd_out != 0 && dv_in) begin
+            if (sym_a_dv) $fwrite(fd_out, "SYMA %0d %0d\n", k, sym_a);
+            if (sym_b_dv) $fwrite(fd_out, "SYMB %0d %0d\n", k, sym_b);
+            if (fs_a)     $fwrite(fd_out, "FSTA %0d\n", k);
+            if (fs_b)     $fwrite(fd_out, "FSTB %0d\n", k);
+        end
+    end
+
+    // —— 定界器内部状态追踪（调试: found 的锁死/误触发）——
+    reg fnd_a_d = 0, fnd_b_d = 0;
+    always @(posedge clk) begin
+        if (fd_out != 0 && dv_in) begin
+            if (dut.u_be_a.u_sfd.found != fnd_a_d)
+                $fwrite(fd_out, "FNDA %0d %0d\n", k, dut.u_be_a.u_sfd.found);
+            if (dut.u_be_b.u_sfd.found != fnd_b_d)
+                $fwrite(fd_out, "FNDB %0d %0d\n", k, dut.u_be_b.u_sfd.found);
+        end
+        fnd_a_d <= dut.u_be_a.u_sfd.found;
+        fnd_b_d <= dut.u_be_b.u_sfd.found;
+    end
+
+    // —— 诊断: phase_out 的变化历史（latch 是否在帧间被改写）——
+    reg [3:0] ph_d = 4'h0;
+    always @(posedge clk) begin
+        if (fd_out != 0 && dv_in && phase_out !== ph_d)
+            $fwrite(fd_out, "PHCH %0d %0d\n", k, phase_out);
+        ph_d <= phase_out;
+    end
+
+    // —— 诊断: 指定区间的 sfd_E 全序列（+EDA/+EDB 给出窗口）——
+    longint unsigned eda = 0, edb = 0;
+    initial begin
+        $value$plusargs("EDA=%d", eda);
+        $value$plusargs("EDB=%d", edb);
+    end
+    always @(posedge clk) begin
+        if (fd_out != 0 && dv_in && edb > eda && k >= eda && k <= edb
+            && dut.u_be_a.u_sfd.chip_dv)
+            $fwrite(fd_out, "SFW %0d %0d\n", k, dut.u_be_a.u_sfd.sfd_E);
+    end
+
+    // —— 眼图 dump: +EYEDUMP=<path> +EYES=<start> +EYEE=<end>（采样级 MF 输出）——
+    // 采样级不加消旋（RTL 的消旋在码片级），Python 侧用与各通道同参数的
+    // 理想旋转做“矫正后”对照 —— 与 chip 级消旋数学等价（复乘与抽取可交换）。
+    string eye_path = "";
+    int    fd_eye = 0;
+    longint unsigned eye_s = 0, eye_e = 0;
+    initial begin
+        if ($value$plusargs("EYEDUMP=%s", eye_path)) fd_eye = $fopen(eye_path, "w");
+        void'($value$plusargs("EYES=%d", eye_s));
+        void'($value$plusargs("EYEE=%d", eye_e));
+    end
+    always @(posedge clk) begin
+        if (fd_eye != 0 && dv_in && k >= eye_s && k <= eye_e)
+            $fwrite(fd_eye, "%0d %0d %0d\n", k, dut.u_fe.mf_i, dut.u_fe.mf_q);
+    end
+
+    // —— 主流程 ——
+    localparam integer DRAIN = 600;
+
+    initial begin
+        if (!$value$plusargs("MEM=%s", mem_path)) begin
+            $display("[dual_mc_tb] FATAL missing +MEM"); $finish;
+        end
+        if (!$value$plusargs("NSMP=%d", nsmp) || nsmp == 0) begin
+            $display("[dual_mc_tb] FATAL missing/invalid +NSMP"); $finish;
+        end
+        if (!$value$plusargs("OUT=%s", out_path)) begin
+            $display("[dual_mc_tb] FATAL missing +OUT"); $finish;
+        end
+        if ($value$plusargs("PH=%d", ph_arg))  ph_th  = ph_arg[47:0];
+        if ($value$plusargs("SFD=%d", sfd_arg)) sfd_th = sfd_arg[47:0];
+        if ($value$plusargs("INCA=%d", inc_arg)) inc_a = inc_arg[23:0];
+        if ($value$plusargs("INCB=%d", inc_arg)) inc_b = inc_arg[23:0];
+        cks_seen = $value$plusargs("CKS=%h", cks_arg);
+        if (nsmp >= MAX_SMP) begin
+            $display("[dual_mc_tb] FATAL NSMP=%0d exceeds MAX_SMP=%0d", nsmp, MAX_SMP);
+            $finish;
+        end
+
+        fd_mem = $fopen(mem_path, "rb");
+        if (fd_mem == 0) begin
+            $display("[dual_mc_tb] FATAL cannot open %s", mem_path); $finish;
+        end
+        got_bytes = $fread(smp_mem, fd_mem);
+        $fclose(fd_mem);
+        if (got_bytes != nsmp * 4) begin
+            $display("[dual_mc_tb] FATAL mem size %0d != NSMP*4 (%0d)",
+                     got_bytes, nsmp * 4);
+            $finish;
+        end
+
+        if (cks_seen) begin
+            reg [31:0] cks = 32'h0;
+            int unsigned ci;
+            for (ci = 0; ci < 1024 && ci < nsmp; ci = ci + 1) cks ^= smp_mem[ci];
+            for (ci = (nsmp > 1024 ? nsmp - 1024 : 0); ci < nsmp; ci = ci + 1)
+                cks ^= smp_mem[ci];
+            if (cks !== cks_arg) begin
+                $display("[dual_mc_tb] FATAL mem checksum %h != %h", cks, cks_arg);
+                $finish;
+            end
+            $display("[dual_mc_tb] mem checksum OK (%h)", cks);
+        end
+
+        rst_n = 0;
+        repeat (16) @(posedge clk);
+        rst_n = 1;
+        @(negedge clk);
+
+        fd_out = $fopen(out_path, "w");
+        if (fd_out == 0) begin
+            $display("[dual_mc_tb] FATAL cannot open out %s", out_path); $finish;
+        end
+
+        for (k = 0; k < nsmp; k = k + 1) begin
+            i_in = smp_mem[k][11:0];
+            q_in = smp_mem[k][23:12];
+            dv_in = 1;
+            @(negedge clk);
+        end
+        dv_in = 0;
+        i_in = 0;
+        q_in = 0;
+
+        repeat (DRAIN) @(posedge clk);
+        $fclose(fd_out);
+
+        $display("[dual_mc_tb] done: %0d samples played, inc_a=%0d inc_b=%0d, sim %0t",
+                 nsmp, inc_a, inc_b, $time);
+        $display("[dual_mc_tb] A: defr.state=%0d byte_idx=%0d psdu_len=%0d crc_busy=%b fcs_ok=%b",
+                 dut.u_be_a.u_defr.state, dut.u_be_a.u_defr.byte_idx,
+                 dut.u_be_a.u_defr.psdu_len, dut.u_be_a.u_defr.crc_busy,
+                 dut.u_be_a.u_defr.fcs_ok);
+        $display("[dual_mc_tb] B: defr.state=%0d byte_idx=%0d psdu_len=%0d crc_busy=%b fcs_ok=%b",
+                 dut.u_be_b.u_defr.state, dut.u_be_b.u_defr.byte_idx,
+                 dut.u_be_b.u_defr.psdu_len, dut.u_be_b.u_defr.crc_busy,
+                 dut.u_be_b.u_defr.fcs_ok);
+        $finish;
+    end
+endmodule

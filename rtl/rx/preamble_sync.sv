@@ -52,6 +52,12 @@ module preamble_sync #(
     // 约束: 帧到达相位逐帧不同 ⇒ 外部必须"每帧"给对（上层需在前导期 128 µs 内完成分析）。
     input  wire                    ext_lock_en,
     input  wire [3:0]              ext_lock_phase,
+    // ---- 扫描重启（单拍）: 帧到达时（preamble_detect）强制回扫描 ----
+    // 为什么必须: 帧到达相位逐帧不同, 而本模块的扫描是自由周期的（超时→重扫）,
+    // 周期与帧周期不同步 → 锁定只能碰巧落在前导期（实测命中率 = 前导/重扫周期
+    // ≈ 2048/5121 ≈ 42%）。由外部"帧到达"事件重启扫描, 保证扫描总在**本帧前导**
+    // 上进行。未连接（如 rx_top 单帧场景, 自包含扫描够用）时视为 0。
+    input  wire                    scan_restart,
     output reg  signed [W-1:0]     chip_i,
     output reg  signed [W-1:0]     chip_q,
     output reg                     chip_dv,
@@ -396,7 +402,7 @@ module preamble_sync #(
                 ST_LOCK: begin
                     // 帧尾闭环: deframer 报告帧结束 → 回扫描态, 为下一帧重新扫描。
                     // 无可选反馈则帧后将卡死 (只能复位恢复); 假前导场景由超时兑底。
-                    if (frame_done || hold_expire) begin
+                    if (frame_done || hold_expire || scan_restart) begin
                         state      <= ST_SCAN;
                         detect     <= 1'b0;
                         sfd_n      <= 7'd0;

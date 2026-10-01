@@ -96,4 +96,6 @@ module rx_dual #(
     );
 
     assign any_fcs_ok = fcs_ok_a | fcs_ok_b;
+    assign frame_done_a = fd_a;
+    assign frame_done_b = fd_b;
 endmodule
