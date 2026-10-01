@@ -25,7 +25,8 @@ module sfd_detect #(
     input  wire signed [W-1:0] chip_i,       // 已消旋的码片
     input  wire signed [W-1:0] chip_q,
     input  wire               chip_dv,
-    input  wire [47:0]        sfd_thresh,
+    input  wire [47:0]        sfd_thresh,   // 绝对能量门限（norm_th=0 时使用）
+    input  wire [15:0]        norm_th = 16'd0,  // 归一化门限 Q8（ρ_th×256）; 0=关闭
     input  wire               frame_done,    // 帧尾（本通道 rx_deframer）
     output reg                frame_start
 );
@@ -64,6 +65,19 @@ module sfd_detect #(
     end
     wire [2*AW-1:0] sfd_E = wi*wi + wq*wq;
 
+    // ---- 归一化（自适应）门限: ρ = sfd_E / (64·W) ≥ ρ_th ----
+    // W = 窗内 64 片能量和（与 sfd_E 同窗: {si[1..63], 当前片}）;
+    // 判据等价于 sfd_E ≥ 64·ρ_th·W = (norm_th·W)>>2（norm_th = round(ρ_th·256)）——
+    // 与信号幅度无关：低功率设备的 SFD 相关能量同比变小, ρ 不变。
+    wire [2*W-1:0]  sq_new = chip_i*chip_i + chip_q*chip_q;
+    wire [2*W-1:0]  sq_old = si[0]*si[0] + sq[0]*sq[0];
+    reg  [47:0]     w_sum;                        // 上一拍窗口能量（不含当前片）
+    wire [47:0]     w_nxt = w_sum + sq_new - sq_old;   // 本拍窗口能量（含当前片）
+    wire [2*AW-1:0] sfd_lim = (norm_th * w_nxt) >> 2;
+    wire trig = (norm_th != 16'd0)
+              ? (w_nxt != 48'd0 && sfd_E >= sfd_lim)
+              : (sfd_E >= sfd_thresh);
+
     integer pp;
 
     always @(posedge clk) begin
@@ -72,6 +86,7 @@ module sfd_detect #(
             n_cnt <= 7'd0;
             found <= 1'b0;
             drain <= {DRAIN_W{1'b0}};
+            w_sum <= 48'd0;
             for (pp = 0; pp < 64; pp = pp + 1) begin
                 si[pp] <= {W{1'b0}};
                 sq[pp] <= {W{1'b0}};
@@ -90,8 +105,9 @@ module sfd_detect #(
                 end
                 si[63] <= chip_i;
                 sq[63] <= chip_q;
+                w_sum  <= w_nxt;
                 n_cnt  <= (n_cnt < 7'd127) ? n_cnt + 7'd1 : n_cnt;
-                if (!found && n_cnt >= 7'd63 && sfd_E >= sfd_thresh) begin
+                if (!found && n_cnt >= 7'd63 && trig) begin
                     frame_start <= 1'b1;   // 下一拍 (片间隙) → 下一个片成为新窗口首片
                     found <= 1'b1;
                 end

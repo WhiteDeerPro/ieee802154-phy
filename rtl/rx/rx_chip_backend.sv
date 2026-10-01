@@ -30,6 +30,7 @@ module rx_chip_backend #(
     input  wire               rot_load,
     // ---- SFD 门限（本通道定界用）----
     input  wire [47:0]        sfd_thresh,
+    input  wire [15:0]        sfd_norm_th = 16'd0,   // 归一化门限 Q8（0=用绝对门限）
     // ---- 输出 ----
     output wire [7:0]         data_out,
     output wire               data_valid,
@@ -60,6 +61,7 @@ module rx_chip_backend #(
         .clk(clk), .rst_n(rst_n),
         .chip_i(rot_i), .chip_q(rot_q), .chip_dv(rot_dv),
         .sfd_thresh(sfd_thresh),
+        .norm_th(sfd_norm_th),
         .frame_done(fd_int),
         .frame_start(fs_ch)
     );

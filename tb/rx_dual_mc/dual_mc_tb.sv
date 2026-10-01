@@ -23,6 +23,8 @@
 //   +MEM=<path>  +NSMP=<n>  +OUT=<path>             (必须)
 //   +CKS=<hex>   激励抽检（mc_gen 的 mem_cks）
 //   +PH=<dec>    +SFD=<dec>                         (门限, 默认同 mc_tb)
+//   +NORMT=<dec>  SFD 归一化门限 Q8（ρ_th×256）; 0/缺省 = 绝对门限 sfd_th
+//        判据: sfd_E ≥ (norm_th·W)>>2, W = 64 片窗能量（幅度自适应）
 //   +INCA=<dec>  +INCB=<dec>  两通道**码片级**相位增量（满量程 2π = 2^24）
 //   +PHTAB=<file>  相位表注入（需编译时 EXTPH=1）:
 //        每行 "<frame_start_dec> <phase_dec>"; 到达每帧起点前 16 拍把
@@ -45,10 +47,11 @@ module dual_mc_tb #(
     int unsigned nsmp = 0;
     reg  [47:0]  ph_th  = 48'd200_000_000_000;
     reg  [47:0]  sfd_th = 48'd30_000_000_000_000;
-    longint unsigned ph_arg = 0, sfd_arg = 0, inc_arg = 0;
+    longint unsigned ph_arg = 0, sfd_arg = 0, inc_arg = 0, normt_arg = 0;
     reg  [31:0]  cks_arg = 32'h0;
     int          cks_seen = 0;
     reg signed [23:0] inc_a = 24'sd0, inc_b = 24'sd0;
+    reg  [15:0]  norm_th = 16'd0;
 
     // —— 激励数组 ——
     reg [31:0] smp_mem [0:MAX_SMP-1];
@@ -82,6 +85,7 @@ module dual_mc_tb #(
         .clk(clk), .rst_n(rst_n),
         .adc_i(i_in), .adc_q(q_in), .adc_dv(dv_in),
         .ph_thresh(ph_th), .sfd_thresh(sfd_th),
+        .sfd_norm_th(norm_th),
         .ext_lock_en(ext_en), .ext_lock_phase(ext_ph), .rot_load(1'b0),
         .phase_inc_chip_a(inc_a), .phase_off_a(24'd0),
         .phase_inc_chip_b(inc_b), .phase_off_b(24'd0),
@@ -220,6 +224,7 @@ module dual_mc_tb #(
         end
         if ($value$plusargs("PH=%d", ph_arg))  ph_th  = ph_arg[47:0];
         if ($value$plusargs("SFD=%d", sfd_arg)) sfd_th = sfd_arg[47:0];
+        if ($value$plusargs("NORMT=%d", normt_arg)) norm_th = normt_arg[15:0];
         if ($value$plusargs("INCA=%d", inc_arg)) inc_a = inc_arg[23:0];
         if ($value$plusargs("INCB=%d", inc_arg)) inc_b = inc_arg[23:0];
         cks_seen = $value$plusargs("CKS=%h", cks_arg);

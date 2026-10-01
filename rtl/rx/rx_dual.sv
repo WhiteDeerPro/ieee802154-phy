@@ -27,6 +27,7 @@ module rx_dual #(
     // ---- 共享配置 ----
     input  wire [47:0]        ph_thresh,
     input  wire [47:0]        sfd_thresh,
+    input  wire [15:0]        sfd_norm_th = 16'd0,   // SFD 归一化门限 Q8（0=绝对）
     input  wire               ext_lock_en,
     input  wire [3:0]         ext_lock_phase,
     input  wire               rot_load,
@@ -78,6 +79,7 @@ module rx_dual #(
         .chip_i(chip_i), .chip_q(chip_q), .chip_dv(chip_dv),
         .phase_inc(phase_inc_chip_a), .phase_off(phase_off_a),
         .rot_load(rot_load), .sfd_thresh(sfd_thresh),
+        .sfd_norm_th(sfd_norm_th),
         .data_out(data_a), .data_valid(data_valid_a),
         .psdu_len(psdu_len_a), .fcs_ok(fcs_ok_a),
         .frame_done(fd_a), .busy(), .frame_start(),
@@ -89,6 +91,7 @@ module rx_dual #(
         .chip_i(chip_i), .chip_q(chip_q), .chip_dv(chip_dv),
         .phase_inc(phase_inc_chip_b), .phase_off(phase_off_b),
         .rot_load(rot_load), .sfd_thresh(sfd_thresh),
+        .sfd_norm_th(sfd_norm_th),
         .data_out(data_b), .data_valid(data_valid_b),
         .psdu_len(psdu_len_b), .fcs_ok(fcs_ok_b),
         .frame_done(fd_b), .busy(), .frame_start(),

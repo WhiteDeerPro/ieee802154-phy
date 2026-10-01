@@ -167,19 +167,21 @@ def main():
     base = [48, 50, 0, 21]
     low = [12, 19, 19, 30]
     agc = [47, 50, 49, 19]
-    x = np.arange(4); wd = 0.26
-    fig, ax = plt.subplots(figsize=(9, 4.6))
-    ax.bar(x - wd, [v/50*100 for v in base], wd, label="原始（SFD=3e13）")
-    ax.bar(x, [v/50*100 for v in low], wd, label="降门限（SFD=1e13）")
-    ax.bar(x + wd, [v/50*100 for v in agc], wd, label="区域AGC（原门限）")
+    norm = [48, 50, 50, 26]
+    x = np.arange(4); wd = 0.20
+    fig, ax = plt.subplots(figsize=(10, 4.8))
+    ax.bar(x - 1.5*wd, [v/50*100 for v in base], wd, label="原始（SFD=3e13）")
+    ax.bar(x - 0.5*wd, [v/50*100 for v in low], wd, label="降门限（SFD=1e13）")
+    ax.bar(x + 0.5*wd, [v/50*100 for v in agc], wd, label="区域AGC（原门限）")
+    ax.bar(x + 1.5*wd, [v/50*100 for v in norm], wd, label="归一化门限（ρ=0.35）")
     ax.set_xticks(x); ax.set_xticklabels(DEV_NAMES, fontsize=8)
     ax.set_ylabel("解析率 (%)"); ax.set_ylim(0, 108)
     ax.grid(axis="y", alpha=0.3)
     ax.legend(fontsize=9)
-    ax.set_title("混合设备解析率：固定门限的取舍 vs AGC", fontsize=11)
-    for i, vals in enumerate(zip(base, low, agc)):
+    ax.set_title("混合设备解析率：固定门限的取舍 vs AGC vs 归一化门限", fontsize=11)
+    for i, vals in enumerate(zip(base, low, agc, norm)):
         for j, v in enumerate(vals):
-            ax.text(i - wd + j*wd, v/50*100 + 1.5, f"{v}", ha="center", fontsize=7)
+            ax.text(i - 1.5*wd + j*wd, v/50*100 + 1.5, f"{v}", ha="center", fontsize=7)
     fig.tight_layout()
     fig.savefig(d / "mixed_rates.png", dpi=120)
     plt.close(fig)
