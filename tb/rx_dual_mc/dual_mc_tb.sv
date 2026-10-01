@@ -191,6 +191,20 @@ module dual_mc_tb #(
             $fwrite(fd_eye, "%0d %0d %0d\n", k, dut.u_fe.mf_i, dut.u_fe.mf_q);
     end
 
+    // —— 码片级消旋 dump: +ROTDUMP=<path>（每码片一行: A/B k rot_i rot_q）——
+    // 供 Python 侧做解扩星座/符号判决（每 32 片一符号, 与 despreader 同口径）。
+    string rot_path = "";
+    int    fd_rot = 0;
+    initial begin
+        if ($value$plusargs("ROTDUMP=%s", rot_path)) fd_rot = $fopen(rot_path, "w");
+    end
+    always @(posedge clk) begin
+        if (fd_rot != 0 && dv_in) begin
+            if (rot_a_dv) $fwrite(fd_rot, "A %0d %0d %0d\n", k, rot_a_i, rot_a_q);
+            if (rot_b_dv) $fwrite(fd_rot, "B %0d %0d %0d\n", k, rot_b_i, rot_b_q);
+        end
+    end
+
     // —— 主流程 ——
     localparam integer DRAIN = 600;
 
@@ -281,6 +295,8 @@ module dual_mc_tb #(
 
         repeat (DRAIN) @(posedge clk);
         $fclose(fd_out);
+        if (fd_rot != 0) $fclose(fd_rot);
+        if (fd_eye != 0) $fclose(fd_eye);
 
         $display("[dual_mc_tb] done: %0d samples played, inc_a=%0d inc_b=%0d, sim %0t",
                  nsmp, inc_a, inc_b, $time);

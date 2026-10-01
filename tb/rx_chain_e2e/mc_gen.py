@@ -61,18 +61,31 @@ def mem_checksum(packed: np.ndarray) -> int:
 
 def gen_point(snr_db, n_frames, psdu_len, scale, seed, gap, tail, out_dir,
               gap_jitter=16, cfo_hz=0.0, iq_gain_db=0.0, iq_phase_deg=0.0,
-              cfo_list=None):
+              cfo_list=None, frame_specs=None):
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     rng = np.random.default_rng(seed)
     sigma = noise_sigma(scale, snr_db)
 
+    # frame_specs: 每帧 (psdu_len, snr_db) 循环 —— 混合设备流（不同帧长/功率级）。
+    # 噪声基准统一为 snr_db（接收机噪声底）；每帧 SNR 差异由**信号幅度**实现
+    # （等效发射功率/距离差），不改变噪声。
+    specs = None
+    if frame_specs is not None:
+        specs = [(int(L), float(s)) for L, s in frame_specs]
+        L_max = max(L for L, _ in specs)
+        K_max = max(len(phy.tx_symbols(bytes(L))) - SHR_SYMBOLS for L, _ in specs)
+    else:
+        L_max = psdu_len
+        K_max = len(phy.tx_symbols(bytes(psdu_len))) - SHR_SYMBOLS
+
     i_parts, q_parts = [], []
     frame_start = np.empty(n_frames, dtype=np.int64)
     # K = PHR(1B) + PSDU + FCS(2B) 的符号数, 即 SHR 之后的全部符号 (RTL 解出的同口径)
-    K = len(phy.tx_symbols(bytes(psdu_len))) - SHR_SYMBOLS
-    txs = np.empty((n_frames, K), dtype=np.int8)
-    psdus = np.empty((n_frames, psdu_len), dtype=np.uint8)
+    txs = np.full((n_frames, K_max), -1, dtype=np.int8)
+    tx_lens = np.zeros(n_frames, dtype=np.int64)
+    psdus = np.zeros((n_frames, L_max), dtype=np.uint8)
+    psdu_lens = np.zeros(n_frames, dtype=np.int64)
     n_clip = n_total = 0
     idx = 0
 
@@ -84,24 +97,32 @@ def gen_point(snr_db, n_frames, psdu_len, scale, seed, gap, tail, out_dir,
         q_parts.append(rng.standard_normal(g_len) * sigma)
         idx += g_len
 
-        # 帧波形 (定点调制 ×SCALE + AWGN)
-        psdu = bytes(rng.integers(0, 256, size=psdu_len).tolist())
+        # 帧波形 (定点调制 ×SCALE(± 每帧幅度因子) + AWGN)
+        if specs is not None:
+            L_f, snr_f = specs[f % len(specs)]
+            amp_f = 10.0 ** ((snr_f - snr_db) / 20.0)   # 低 SNR → 低幅度
+        else:
+            L_f, amp_f = psdu_len, 1.0
+        psdu = bytes(rng.integers(0, 256, size=L_f).tolist())
         syms = phy.tx_symbols(psdu)
         i_f, q_f = phy.modulate_oqpsk_fixed(syms.tolist())
         n = max(len(i_f), len(q_f))       # q 比 i 多 sps//2 (半码片偏移尾巴)
         i_f = np.asarray(i_f, dtype=float)
         q_f = np.asarray(q_f, dtype=float)
-        i_f = np.pad(i_f * scale, (0, n - len(i_f)))
-        q_f = np.pad(q_f * scale, (0, n - len(q_f)))
+        i_f = np.pad(i_f * scale * amp_f, (0, n - len(i_f)))
+        q_f = np.pad(q_f * scale * amp_f, (0, n - len(q_f)))
         i_f = i_f + rng.standard_normal(n) * sigma
         q_f = q_f + rng.standard_normal(n) * sigma
 
         frame_start[f] = idx
-        txs[f] = np.asarray(syms[SHR_SYMBOLS:], dtype=np.int8)
+        K_f = len(syms) - SHR_SYMBOLS
+        txs[f, :K_f] = np.asarray(syms[SHR_SYMBOLS:], dtype=np.int8)
+        tx_lens[f] = K_f
+        psdu_lens[f] = L_f
         i_parts.append(i_f)
         q_parts.append(q_f)
         idx += n
-        psdus[f] = np.frombuffer(psdu, dtype=np.uint8)
+        psdus[f, :L_f] = np.frombuffer(psdu, dtype=np.uint8)
 
         # 帧后 TAIL (纯噪声, 保证帧尾符号流排空)
         i_parts.append(rng.standard_normal(tail) * sigma)
@@ -162,13 +183,18 @@ def gen_point(snr_db, n_frames, psdu_len, scale, seed, gap, tail, out_dir,
     mem_cks = mem_checksum(packed)
 
     np.savez_compressed(out_dir / "frames.npz",
-                        frame_start=frame_start, tx_syms=txs, psdu=psdus)
+                        frame_start=frame_start, tx_syms=txs, psdu=psdus,
+                        tx_lens=tx_lens, psdu_lens=psdu_lens)
     # CFO 链触发参考: 帧起点采样索引 (每行一个, 供 mc_cfo_tb.sv 在
     # 前导起点处发 est_start / rot_load; "上帝视角"触发仅用于验证消旋架构成效)
     np.savetxt(out_dir / "frames.txt", frame_start, fmt="%x")
 
     meta = dict(snr_db=snr_db, scale=scale, sigma=sigma, n_frames=n_frames,
                 psdu_len=psdu_len, seed=seed, gap=gap, tail=tail,
+                per_frame_psdu_len=psdu_lens.tolist() if specs else None,
+                per_frame_snr_db=([specs[f % len(specs)][1] for f in range(n_frames)]
+                                  if specs else None),
+                frame_specs=list(specs) if specs else None,
                 gap_jitter=gap_jitter, cfo_hz=cfo_hz,
                 cfo_per_frame=[float(c) for c in cfo_per_frame]
                 if np.any(cfo_arr) else None,
