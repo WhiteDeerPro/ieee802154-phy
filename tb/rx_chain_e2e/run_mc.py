@@ -256,6 +256,8 @@ def run_point(snr, cfo_hz, frames, args, simv, data_dir):
         sim_cmd.append(f"+EXTINC={args.extinc}")    # 外部参数通道: 强制 phase_inc
     if getattr(args, "top_chain", False) and getattr(args, "dpi", False):
         sim_cmd.append("+DPI=1")                    # DPI 观测器（固件在环）
+    if getattr(args, "top_chain", False) and getattr(args, "extlck", None) is not None:
+        sim_cmd.append(f"+EXTLCK={args.extlck}")    # 外部定时通道: 强制相位
     r = subprocess.run(sim_cmd, cwd=pdir, env=VCS_ENV, capture_output=True, text=True)
     if r.returncode != 0 or "done:" not in r.stdout:
         (pdir / "sim.log").write_text(
@@ -305,6 +307,8 @@ def main():
                     help="外部参数通道: 强制 phase_inc=<24bit 有符号> (绕开内部估计; 正式端口 ext_inc)")
     ap.add_argument("--dpi", action="store_true",
                     help="DPI 观测器（固件在环）: est_done 时调用 C 侧 observer_dpi.c, LOCK 后接管消旋参数")
+    ap.add_argument("--extlck", type=int, default=None,
+                    help="外部定时通道: 跳过 16 候选扫描, 直接用该相位去交错 (0..15)")
     ap.add_argument("--force-build", action="store_true")
     ap.add_argument("--fixinc", type=int, default=None,
                     help="诊断: 固定 phase_inc (跳过估计); 0 = 完全不消旋; 顶层链/CFO 链均有效")

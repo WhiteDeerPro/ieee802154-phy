@@ -82,6 +82,17 @@ module mc_top_tb #(
         end
     end
 
+    // ---- 外部定时通道（"全估计外置"）: +EXTLCK=<相位 0..15> 启用 ----
+    integer        ext_lck_tmp;
+    reg            EXT_LCK_EN = 1'b0;
+    reg [3:0]      EXT_LCK_PH = 4'd0;
+    initial begin
+        if ($value$plusargs("EXTLCK=%d", ext_lck_tmp)) begin
+            EXT_LCK_EN = 1'b1;
+            EXT_LCK_PH = ext_lck_tmp[3:0];
+        end
+    end
+
     // ---- DPI 观测器（"固件在环"最小演示）: +DPI=1 启用 ----
     // C 侧 observer_dpi.c 与 model/upper/observer.py 同结构；本 tb 在每次
     // est_done 把 (估计值, 质量分子/分母) 喂给它，LOCK 后经外部参数通道接管消旋。
@@ -98,6 +109,7 @@ module mc_top_tb #(
         .cfo_en(cfo_en), .est_start(est_start_r), .rot_load(rot_load_r),
         .trig_ext(trig_ext_r),
         .ext_inc_en(EXT_INC_EN), .ext_inc(EXT_INC_V), .ext_phase_off(24'd0),
+        .ext_lock_en(EXT_LCK_EN), .ext_lock_phase(EXT_LCK_PH),
         .ph_thresh(ph_th), .sfd_thresh(sfd_th),
         .detect(detect), .locked_phase(locked_phase),
         .frame_start(frame_start), .busy(busy),

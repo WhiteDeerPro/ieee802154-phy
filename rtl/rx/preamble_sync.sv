@@ -47,6 +47,11 @@ module preamble_sync #(
     input  wire [47:0]             ph_thresh,     // 块间自相关 r 门限 (正, 有符号比较)
     input  wire [47:0]             sfd_thresh,    // SFD 窗能量门限
     input  wire                    frame_done,    // 帧尾事件 (来自 rx_deframer): 回扫描态
+    // ---- 外部定时通道（"全估计外置"的定时部分, 见 docs/16 §8）----
+    // 置 ext_lock_en=1 且在扫描态时, 直接用 ext_lock_phase 去交错, 跳过 16 候选扫描。
+    // 约束: 帧到达相位逐帧不同 ⇒ 外部必须"每帧"给对（上层需在前导期 128 µs 内完成分析）。
+    input  wire                    ext_lock_en,
+    input  wire [3:0]              ext_lock_phase,
     output reg  signed [W-1:0]     chip_i,
     output reg  signed [W-1:0]     chip_q,
     output reg                     chip_dv,
@@ -294,7 +299,13 @@ module preamble_sync #(
             drain_cnt   <= (state == ST_SCAN || !sfd_found) ? {FRAME_DRAIN{1'b0}}
                                                             : drain_cnt + 1'b1;
 
-            case (state)
+            if (ext_lock_en && state == ST_SCAN) begin
+                // 外部定时直锁: 跳过 16 候选扫描, 直接用外部相位去交错
+                state        <= ST_LOCK;
+                lphase       <= ext_lock_phase;
+                locked_phase <= ext_lock_phase;
+                detect       <= 1'b1;
+            end else case (state)
                 ST_SCAN: begin
                     // 每拍服务 (16 相位候选全覆盖): 位置 q 的采样服务偶链候选 q
                     // 与奇链候选 (q+4)%16 —— 每候选每 16 采样被服务 2 次 (一偶一奇)

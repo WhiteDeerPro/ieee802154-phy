@@ -32,7 +32,8 @@ def s21(v):
 async def preamble_sync_bit_true(dut):
     cocotb.start_soon(Clock(dut.clk, 62.5, unit="ns").start())
     for sig, v in (("i_in", 0), ("q_in", 0), ("dv_in", 0), ("frame_done", 0),
-                   ("ph_thresh", PH_THRESH), ("sfd_thresh", SFD_THRESH)):
+                   ("ph_thresh", PH_THRESH), ("sfd_thresh", SFD_THRESH),
+                   ("ext_lock_en", 0), ("ext_lock_phase", 0)):
         getattr(dut, sig).value = v
     dut.rst_n.value = 0
     await Timer(200, unit="ns")

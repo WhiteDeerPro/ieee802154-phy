@@ -72,6 +72,11 @@ module rx_top #(
     input  wire               ext_inc_en,   // 1: 消旋参数取自 ext_inc（内部估计旁路）
     input  wire signed [PW-1:0] ext_inc,    // 外部相位增量（每采样, 满量程 2π）
     input  wire [PW-1:0]        ext_phase_off, // 外部帧起点相位（默认 0）
+    // ---- 外部定时通道（"全估计外置"的定时部分, 见 docs/16 §8）----
+    // 置 ext_lock_en=1 且在扫描态时，直接用 ext_lock_phase 去交错，跳过 16 候选扫描。
+    // 约束: 帧到达相位逐帧不同 ⇒ 外部必须"每帧"给对（上层需在前导期 128 µs 内完成）。
+    input  wire               ext_lock_en,
+    input  wire [3:0]         ext_lock_phase,
     input  wire               trig_ext,     // 0: 用内部检测器触发 (自主); 1: 用外部 est_start
     input  wire [47:0]        ph_thresh,    // 前导锁定门限
     input  wire [47:0]        sfd_thresh,   // SFD 相关门限
@@ -220,6 +225,7 @@ module rx_top #(
         .i_in(rot_i), .q_in(rot_q), .dv_in(rot_dv),
         .ph_thresh(ph_thresh), .sfd_thresh(sfd_thresh),
         .frame_done(fd_int),
+        .ext_lock_en(ext_lock_en), .ext_lock_phase(ext_lock_phase),
         .chip_i(chip_i), .chip_q(chip_q), .chip_dv(chip_dv),
         .detect(detect), .frame_start(frame_start), .locked_phase(locked_phase)
     );
