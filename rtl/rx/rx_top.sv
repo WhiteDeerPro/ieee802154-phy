@@ -112,7 +112,6 @@ module rx_top #(
     integer              vk;
     wire [PW-1:0]        bin_off = phase_inc + INC_LIMIT - 1'b1;   // 偏到 [0, 2·INC_LIMIT)
     wire [5:0]           bin_now = bin_off[19:VOTE_SHIFT];        // 6 位 -> 64 bin
-    wire                 fd_int;         // deframer → sync 的帧尾闭环 (前向声明)
 
     // 内部触发: sync 的 detect 上升沿 + TRIG_DLY_N 拍延迟后启动 est_start。
     // detect 相对帧起点偏移实测 538±1 采样 (结构决定: ready 需连续 2 块=512 + 相位对齐),
@@ -150,7 +149,7 @@ module rx_top #(
                 trig_busy <= 1'b1;
                 trig_to   <= 15'd0;
             end else if (trig_busy) begin
-                if (fd_int || trig_to >= TRIG_TIMEOUT) begin
+                if (frame_done || trig_to >= TRIG_TIMEOUT) begin
                     trig_busy <= 1'b0;
                     trig_to   <= 15'd0;
                 end else
@@ -193,18 +192,6 @@ module rx_top #(
         .done(est_done), .est_ok(est_ok), .p_hat(p_hat), .phase_inc(phase_inc), .phase_off(phase_off)
     );
 
-    // ---------------- 消旋 ----------------
-    wire signed [W-1:0] rot_i, rot_q;
-    wire                rot_dv;
-    cfo_rot #(.W(W)) u_rot (
-        .clk(clk), .rst_n(rst_n),
-        .i_in(mf_i), .q_in(mf_q), .dv_in(mf_dv),
-        .load(rot_load),
-        .phase_inc(ext_inc_en ? ext_inc : inc_reg),   // 外部参数通道 / 内部估计
-        .phase_off(ext_phase_off),
-        .i_out(rot_i), .q_out(rot_q), .dv_out(rot_dv)
-    );
-
     // ---------------- 前导检测器 (短窗归一化延迟自相关) ----------------
     // 参考实验 model/experiments/run_preamble_detect.py: 该方法在 0–200 kHz CFO
     // 下 Pd=1.00 且对 CFO 免疫。
@@ -216,36 +203,20 @@ module rx_top #(
         .det_pulse(pd_det)
     );
 
-    // ---------------- 同步 / 解扩 / 解帧 ----------------
-    wire signed [20:0] chip_i, chip_q;
-    wire               chip_dv;
-
-    preamble_sync #(.W(W)) u_sync (
+    // ---------------- 执行段（消旋 → 同步 → 解扩 → 解帧）----------------
+    // 切分线在 MF 输出: 本模块 = 共享前端 + 估计/触发 + **执行段**（自包含单通道）。
+    // 多通道并行见 rx_dual（共享前端 + 多个 rx_backend, 各带自己的旋性假设）。
+    rx_backend #(.W(W), .PW(PW)) u_be (
         .clk(clk), .rst_n(rst_n),
-        .i_in(rot_i), .q_in(rot_q), .dv_in(rot_dv),
-        .ph_thresh(ph_thresh), .sfd_thresh(sfd_thresh),
-        .frame_done(fd_int),
+        .mf_i(mf_i), .mf_q(mf_q), .mf_dv(mf_dv),
+        .phase_inc(ext_inc_en ? ext_inc : inc_reg),   // 外部参数通道 / 内部估计
+        .phase_off(ext_phase_off),
+        .rot_load(rot_load),
         .ext_lock_en(ext_lock_en), .ext_lock_phase(ext_lock_phase),
-        .chip_i(chip_i), .chip_q(chip_q), .chip_dv(chip_dv),
-        .detect(detect), .frame_start(frame_start), .locked_phase(locked_phase)
-    );
-
-    wire [3:0] sym;
-    wire       sym_dv;
-    despreader #(.W(12)) u_desp (
-        .clk(clk), .rst_n(rst_n),
-        .chip_i(chip_i[18:7]), .chip_q(chip_q[18:7]), .chip_dv(chip_dv),
-        .frame_start(frame_start),
-        .sym(sym), .sym_dv(sym_dv)
-    );
-
-    rx_deframer u_defr (
-        .clk(clk), .rst_n(rst_n),
-        .sym(sym), .sym_dv(sym_dv), .frame_start(frame_start),
+        .ph_thresh(ph_thresh), .sfd_thresh(sfd_thresh),
+        .detect(detect), .locked_phase(locked_phase),
+        .frame_start(frame_start), .busy(busy),
         .data_out(data_out), .data_valid(data_valid),
-        .psdu_len(psdu_len), .fcs_ok(fcs_ok),
-        .frame_done(fd_int), .busy(busy)
+        .psdu_len(psdu_len), .fcs_ok(fcs_ok), .frame_done(frame_done)
     );
-
-    assign frame_done = fd_int;
 endmodule

@@ -45,14 +45,12 @@ async def dual_channel_with_distinct_hypotheses(dut):
 
     # 通道 A: 正确消旋；通道 B: 不消旋
     inc_ok = int(round(CFO_HZ * PHASE_FS / FS))
-    dut.ext_inc_en_a.value = 1
-    dut.ext_inc_a.value = inc_ok
-    dut.ext_inc_en_b.value = 1
-    dut.ext_inc_b.value = 0
+    dut.phase_inc_a.value = inc_ok
+    dut.phase_inc_b.value = 0
+    dut.phase_off_a.value = 0
+    dut.phase_off_b.value = 0
     dut.ext_lock_en_a.value = 0
     dut.ext_lock_en_b.value = 0
-    dut.cfo_en.value = 1
-    dut.trig_ext.value = 1
     dut.ph_thresh.value = 2 * 10 ** 11
     dut.sfd_thresh.value = 3 * 10 ** 13
 
@@ -90,12 +88,11 @@ async def _clock(dut):
 
 async def _reset(dut):
     for sig, v in (("adc_i", 0), ("adc_q", 0), ("adc_dv", 0),
-                   ("ext_inc_en_a", 0), ("ext_inc_a", 0), ("ext_phase_off_a", 0),
+                   ("phase_inc_a", 0), ("phase_off_a", 0),
                    ("ext_lock_en_a", 0), ("ext_lock_phase_a", 0),
-                   ("ext_inc_en_b", 0), ("ext_inc_b", 0), ("ext_phase_off_b", 0),
+                   ("phase_inc_b", 0), ("phase_off_b", 0),
                    ("ext_lock_en_b", 0), ("ext_lock_phase_b", 0),
-                   ("cfo_en", 0), ("est_start", 0), ("rot_load", 0),
-                   ("trig_ext", 1), ("ph_thresh", 0), ("sfd_thresh", 0)):
+                   ("rot_load", 0), ("ph_thresh", 0), ("sfd_thresh", 0)):
         getattr(dut, sig).value = v
     dut.rst_n.value = 0
     for _ in range(10):
