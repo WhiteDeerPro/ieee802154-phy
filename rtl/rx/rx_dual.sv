@@ -65,8 +65,8 @@ module rx_dual #(
         .i_out(mf_i), .q_out(mf_q), .dv_out(mf_dv)
     );
 
-    // ---------------- 通道 A：执行段（自带消旋器）----------------
-    rx_backend #(.W(W), .PW(PW)) u_be_a (
+    // ---------------- 通道 A：执行段（自带消旋器；完整同步器, 16 候选扫描）----------------
+    rx_backend #(.W(W), .PW(PW), .SYNC_DIRECT(1'b0)) u_be_a (
         .clk(clk), .rst_n(rst_n),
         .mf_i(mf_i), .mf_q(mf_q), .mf_dv(mf_dv),
         .phase_inc(phase_inc_a), .phase_off(phase_off_a),
@@ -79,8 +79,10 @@ module rx_dual #(
         .psdu_len(psdu_len_a), .fcs_ok(fcs_ok_a), .frame_done(frame_done_a)
     );
 
-    // ---------------- 通道 B：执行段（自带消旋器）----------------
-    rx_backend #(.W(W), .PW(PW)) u_be_b (
+    // ---------------- 通道 B：执行段（自带消旋器；**精简同步器**, 定时外置无扫描）----------------
+    // 与通道 A 形成对比: 同样的执行功能, 但同步器从 16 候选扫描换成
+    // preamble_lock（相位由 ext_lock_phase 给定）—— docs/16 §8.5。
+    rx_backend #(.W(W), .PW(PW), .SYNC_DIRECT(1'b1)) u_be_b (
         .clk(clk), .rst_n(rst_n),
         .mf_i(mf_i), .mf_q(mf_q), .mf_dv(mf_dv),
         .phase_inc(phase_inc_b), .phase_off(phase_off_b),

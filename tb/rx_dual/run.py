@@ -15,6 +15,7 @@ if __name__ == "__main__":
         "rtl/rx/rx_matched_filter.sv",   # 共享前端
         "rtl/rx/cfo_rot.sv",
         "rtl/rx/preamble_sync.sv",
+        "rtl/rx/preamble_lock.sv",       # 精简同步器（无扫描, 定时外置）
         "rtl/rx/despreader.sv",
         "rtl/rx/rx_deframer.sv",
         "rtl/rx/rx_backend.sv",          # 执行段（每通道一份）

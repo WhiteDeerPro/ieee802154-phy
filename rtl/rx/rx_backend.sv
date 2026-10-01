@@ -16,7 +16,11 @@
 `timescale 1ns/1ps
 module rx_backend #(
     parameter W  = 21,               // 匹配滤波输出位宽
-    parameter PW = 24                // 相位定点位宽 (满量程 2π)
+    parameter PW = 24,               // 相位定点位宽 (满量程 2π)
+    // 同步器形态: 0 = preamble_sync（16 候选扫描, 自包含, ~43 kbit）
+    //             1 = preamble_lock（定时外置, 无扫描, ~3 kbit）
+    // 对应 docs/16 §8.5 的"同步器极简化"；两者功能等价（去交错 + SFD 定界）。
+    parameter SYNC_DIRECT = 1'b0
 ) (
     input  wire               clk,
     input  wire               rst_n,
@@ -62,15 +66,34 @@ module rx_backend #(
     wire               chip_dv;
     wire               fd_int;        // deframer → sync 的帧尾闭环
 
-    preamble_sync #(.W(W)) u_sync (
-        .clk(clk), .rst_n(rst_n),
-        .i_in(rot_i), .q_in(rot_q), .dv_in(rot_dv),
-        .ph_thresh(ph_thresh), .sfd_thresh(sfd_thresh),
-        .frame_done(fd_int),
-        .ext_lock_en(ext_lock_en), .ext_lock_phase(ext_lock_phase),
-        .chip_i(chip_i), .chip_q(chip_q), .chip_dv(chip_dv),
-        .detect(detect), .frame_start(frame_start), .locked_phase(locked_phase)
-    );
+    generate
+        if (SYNC_DIRECT) begin : g_direct
+            // 精简路径: 定时已外置（phase 由上层/前级给定, 每帧更新）
+            // 不含 16 候选扫描 —— 面积 ~3 kbit（SFD 窗为主）
+            assign detect       = ext_lock_en;          // 相位已给定 → 视为常锁定
+            assign locked_phase = ext_lock_phase;
+            preamble_lock #(.W(W)) u_lock (
+                .clk(clk), .rst_n(rst_n),
+                .i_in(rot_i), .q_in(rot_q), .dv_in(rot_dv),
+                .phase(ext_lock_phase),
+                .sfd_thresh(sfd_thresh),
+                .frame_done(fd_int),
+                .chip_i(chip_i), .chip_q(chip_q), .chip_dv(chip_dv),
+                .frame_start(frame_start)
+            );
+        end else begin : g_scan
+            // 完整路径: 16 候选扫描（自包含, 自己估定时）
+            preamble_sync #(.W(W)) u_sync (
+                .clk(clk), .rst_n(rst_n),
+                .i_in(rot_i), .q_in(rot_q), .dv_in(rot_dv),
+                .ph_thresh(ph_thresh), .sfd_thresh(sfd_thresh),
+                .frame_done(fd_int),
+                .ext_lock_en(ext_lock_en), .ext_lock_phase(ext_lock_phase),
+                .chip_i(chip_i), .chip_q(chip_q), .chip_dv(chip_dv),
+                .detect(detect), .frame_start(frame_start), .locked_phase(locked_phase)
+            );
+        end
+    endgenerate
 
     wire [3:0] sym;
     wire       sym_dv;

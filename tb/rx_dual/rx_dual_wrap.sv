@@ -79,17 +79,19 @@ module rx_dual_wrap #(
     wire signed [W-1:0] wav_rotB_q = dut.u_be_b.u_rot.q_out;
     wire [3:0]         wav_symA   = dut.u_be_a.u_desp.sym;
     wire [3:0]         wav_symB   = dut.u_be_b.u_desp.sym;
+    // 诊断探针: 精简同步器内部（generate block 内 cocotb 访问不到, 用探针引出）
+    wire [6:0]         wav_lkB_n     = dut.u_be_b.g_direct.u_lock.sfd_n;
+    wire               wav_lkB_found = dut.u_be_b.g_direct.u_lock.sfd_found;
+    wire               wav_lkB_fs    = dut.u_be_b.g_direct.u_lock.frame_start;
 
     initial begin
         $dumpfile("rx_dual.vcd");
         $dumplimit(30000000);
-        // 顶层端口 + 探针（wav_* 带通道名, 这是给波形用的主要观察点）
+        // 顶层端口（含 detect_a/b、locked_phase_a/b、fcs_ok_a/b、any_fcs_ok）
+        // + 探针 wav_*（带通道名, 区分 A/B）
+        // 注: 不 dump 同步器内部信号 —— rx_backend 的同步器在 generate 分支里
+        //     （g_scan.u_sync / g_direct.u_lock）, 路径随参数而变; 关键状态已由
+        //     顶层端口（detect_*/locked_phase_*）与 wav_* 覆盖。
         $dumpvars(1, rx_dual_wrap);
-        // 同步/锁定只取关键信号（逐个列出, 避免拉进 16 候选寄存器阵列）
-        $dumpvars(0,
-            dut.u_be_a.u_sync.detect, dut.u_be_a.u_sync.frame_start,
-            dut.u_be_a.u_sync.locked_phase,
-            dut.u_be_b.u_sync.detect, dut.u_be_b.u_sync.frame_start,
-            dut.u_be_b.u_sync.locked_phase);
     end
 endmodule
