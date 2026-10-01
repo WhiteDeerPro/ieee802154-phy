@@ -19,7 +19,8 @@ model/   Python 浮点黄金模型 (golden model) —— RTL bit-true 比对基�
   │   └─ dc_block.py  一阶 IIR 直流阻塞 + 盲 I/Q 失衡抑制
   ├─ chains.py        ★ 链路库: 把制式原语组装成可运行链路 (tx_stages / rx_stages / link / simulate)
   ├─ upper/           上层/主机侧组件 (非物理层: 参数记忆与模式匹配; 见 docs/12)
-  │   └─ patterns.py  接收模式库: 记忆/匹配/发现/淘汰 (演示"旋性可由上层管理"的参考实现)
+  │   ├─ patterns.py  接收模式库: 记忆/匹配/发现/淘汰 (演示"旋性可由上层管理"的参考实现)
+  │   └─ observer.py  链路观测器: 跨帧证据累积 + 捕获状态机 + 服务调度 (见 docs/16)
   ├─ measure.py       测量层: BER/SER/EVM/SNR/星座软值/相关/频谱/眼图 (纯函数, 不画图)
   ├─ visualize.py     可视化层: 消费 measure 结果画图 (matplotlib 薄封装)
   ├─ filters.py        滤波器设计 (窗函数法) 与频响分析
@@ -106,6 +107,10 @@ python model/experiments/run_oqpsk_comprehensive.py # OQPSK 完整可视化: 基
 python model/experiments/run_e2e_file.py           # 全流程演练: README 文本 → 比特流 → 波形 → 损伤 → 还原 → out/vis/
 python model/experiments/run_pattern_lib.py        # 模式库验证: 多设备帧流的匹配/发现/淘汰 → out/pattern_lib/
 python model/experiments/run_pattern_link.py       # 模式库接入链路: two_stage vs pattern (跨帧记忆) → out/pattern_link/
+python model/experiments/run_observer_replay.py    # 观测器回放: RTL 估计序列 → 捕获/热启动对比 → out/observer/
+python model/experiments/run_observer_multidev.py  # 多设备场景 + 服务调度 → out/observer/
+python model/experiments/run_rtl_residual.py       # RTL 侧残余 CFO 容限(外部参数通道错配扫描) → out/rtl_residual/
+python model/experiments/run_residual_viz.py       # 残余 CFO 表征: 眼图 + 星座 → out/residual_viz/
 python model/experiments/bandpass_sampling_demo.py # 带通采样 + DDC 数学性质 → out/bandpass/
 ```
 
@@ -204,9 +209,14 @@ BER 从 0.33~0.79 全部回到零错误，前导相关峰（同步环）恢复 5
 波形 `tb/cfo_corr/sim_build/cfo_corr.fst`（74 KB，信号单 `gtkwave_signals.tcl`）
 - **RX 顶层集成**（`rtl/rx/rx_top.sv`，2026-09-29）：`ADC(12bit) → rx_matched_filter → cfo_rot → preamble_sync → despreader → rx_deframer` 的可综合顶层；`preamble_detect`（短窗归一化延迟自相关，对 CFO 免疫）已接入，当前作观测输出。验证链 `tb/rx_chain_e2e/mc_top_tb.sv`
 - **上层旋性管理**（`docs/12` 架构决策 + `model/upper/patterns.py` 参考实现）：单元只做消旋，旋性的发现 / 记忆 / 匹配 / 淘汰放上层或转发出去；待办 issue 见 `docs/14`（I-8…I-16）
+- **链路观测器**（`model/upper/observer.py` + `docs/16`）：观测多帧 → 估计链路状态 → 控制矫正。
+Python ref（多状态共存 + 证据累积 + SEARCH/VERIFY/LOCK + RRM 风格服务调度，`test_observer` 18/18）
++ C 实现（`observer_dpi.c`）经 DPI-C 在仿真中实时运行；外部参数通道 `rx_top.ext_inc_*` 已打通
+（决策层解耦）。实测：回放对比 0.9 kHz vs 单帧硬判决 78.5 kHz；共享分辨单元（1 状态服务 8 台）；
+残余容限 RTL 侧 δ≤2 kHz 无损、10 kHz 仍可用 65%
 - **遗留**：自主触发（`preamble_detect` → `cfo_est`）尚未收敛（方案 C 后 25/50），当前交付为外部触发 ——
 专题总览见 `docs/15`，探索记录见 `docs/08` I-6，重写计划见 I-17
-- **下一步**：`docs/14` 的 I-13 —— 前导码片缓冲 + 上层读出口，随后 I-15 接口闭环联调
+- **下一步**：I-13 前导码片缓冲（观测上行）+ 异常帧上报（`docs/16` §9），随后 I-15 接口闭环联调
 
 ## 参考（README/文档级调研）
 
