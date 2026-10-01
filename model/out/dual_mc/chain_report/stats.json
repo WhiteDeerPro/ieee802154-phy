@@ -1,0 +1,106 @@
+{
+ "ok": 130,
+ "nfr": 200,
+ "rows": {
+  "dev1_20dB_pre": [
+   8,
+   9
+  ],
+  "dev1_20dB_post": [
+   8,
+   8
+  ],
+  "dev1_12dB_pre": [
+   8,
+   8
+  ],
+  "dev1_12dB_post": [
+   9,
+   9
+  ],
+  "dev1_6dB_pre": [
+   3,
+   8
+  ],
+  "dev1_6dB_post": [
+   5,
+   8
+  ],
+  "dev2_20dB_pre": [
+   9,
+   9
+  ],
+  "dev2_20dB_post": [
+   0,
+   8
+  ],
+  "dev2_12dB_pre": [
+   7,
+   8
+  ],
+  "dev2_12dB_post": [
+   0,
+   9
+  ],
+  "dev2_6dB_pre": [
+   1,
+   8
+  ],
+  "dev2_6dB_post": [
+   0,
+   8
+  ],
+  "dev3_20dB_pre": [
+   8,
+   9
+  ],
+  "dev3_20dB_post": [
+   7,
+   8
+  ],
+  "dev3_12dB_pre": [
+   8,
+   8
+  ],
+  "dev3_12dB_post": [
+   9,
+   9
+  ],
+  "dev3_6dB_pre": [
+   1,
+   8
+  ],
+  "dev3_6dB_post": [
+   2,
+   8
+  ],
+  "dev4_20dB_pre": [
+   9,
+   9
+  ],
+  "dev4_20dB_post": [
+   8,
+   8
+  ],
+  "dev4_12dB_pre": [
+   8,
+   8
+  ],
+  "dev4_12dB_post": [
+   9,
+   9
+  ],
+  "dev4_6dB_pre": [
+   2,
+   8
+  ],
+  "dev4_6dB_post": [
+   1,
+   8
+  ]
+ },
+ "frames_exact": 130,
+ "frames_bad": 0,
+ "bytes_ok": 4140,
+ "bytes_bad": 0
+}
