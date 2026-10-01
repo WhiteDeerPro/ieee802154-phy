@@ -73,17 +73,19 @@ def inc_from_cfo(cfo_hz: float) -> int:
     return int(round(cfo_hz * PHASE_FS / FS)) * SPS
 
 
-def build(force=False) -> Path:
-    """VCS 编译一次, 所有点复用。"""
+def build(force=False, ext=False) -> Path:
+    """VCS 编译一次, 所有点复用。ext=True 编 EXTPH=1 变体（相位外置）。"""
     SIM_DIR.mkdir(parents=True, exist_ok=True)
-    simv = SIM_DIR / "simv_dual_mc"
+    simv = SIM_DIR / ("simv_dual_mc_ext" if ext else "simv_dual_mc")
     if simv.exists() and not force:
         return simv
-    csrc = SIM_DIR / "csrc_dual_mc"
+    csrc = SIM_DIR / ("csrc_dual_mc_ext" if ext else "csrc_dual_mc")
     csrc.mkdir(parents=True, exist_ok=True)
     cmd = [f"{VCS_ENV['VCS_HOME']}/bin/vcs", "-full64", "-sverilog",
            "-timescale=1ns/1ps", "-o", str(simv),
            "+incdir+" + str(ROOT / "rtl" / "rx")]
+    if ext:
+        cmd += ["-pvalue+dual_mc_tb.EXTPH=1"]
     cmd += [str(ROOT / s) for s in SOURCES]
     t0 = time.time()
     r = subprocess.run(cmd, cwd=csrc, env=VCS_ENV, capture_output=True, text=True)
@@ -95,8 +97,15 @@ def build(force=False) -> Path:
 
 
 def run_point(simv: Path, out_dir: Path, cfo_list, snr, frames, inc_a, inc_b,
-              psdu_len=20, seed=1, force_gen=False) -> dict:
-    """生成激励 → 跑 → 返回 meta。"""
+              psdu_len=20, seed=1, force_gen=False,
+              phase_offset=None) -> dict:
+    """生成激励 →（可选: 写真相位表）→ 跑 → 返回 meta。
+
+    phase_offset 非 None 时进入"真相位注入"模式: 每帧相位 =
+    (frame_start + phase_offset) & 15（标定值 8, 见 dev2 成功帧投票），
+    经 +PHTAB 喂给 SYNC_DIRECT=1 的 DUT（对照实验: 分离扫描命中率）。
+    """
+    out_dir = Path(out_dir).resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
     meta = mc_gen.gen_point(snr, frames, psdu_len, 8.0, seed, 400, 600, out_dir,
                             gap_jitter=16, cfo_list=cfo_list)
@@ -107,9 +116,19 @@ def run_point(simv: Path, out_dir: Path, cfo_list, snr, frames, inc_a, inc_b,
            f"+CKS={meta['mem_cks']}",
            f"+INCA={inc_a & 0xFFFFFF}",
            f"+INCB={inc_b & 0xFFFFFF}"]
+    if phase_offset is not None:
+        gt = np.load(out_dir / "frames.npz")
+        fs = gt["frame_start"].astype(np.int64)
+        off = int(phase_offset) & 15
+        phtab = out_dir / "phtab.txt"
+        phtab.write_text("".join(
+            f"{int(s)} {int((s + off) & 15)}\n" for s in fs))
+        cmd.append(f"+PHTAB={phtab}")
+        meta["phase_offset"] = off
     t0 = time.time()
     r = subprocess.run(cmd, cwd=out_dir, env=VCS_ENV, capture_output=True, text=True)
-    if r.returncode != 0:
+    if r.returncode != 0 or not (out_dir / "events.txt").exists():
+        # tb 的 FATAL $finish 返回码为 0, 故必须检查产物存在性
         sys.stderr.write(r.stdout[-4000:] + "\n" + r.stderr[-4000:])
         raise SystemExit("[run_dual_mc] sim FAILED")
     print(f"[run_dual_mc] sim ok ({time.time()-t0:.1f}s, {meta['n_smp']} 采样)")
@@ -182,6 +201,10 @@ def main():
     ap.add_argument("--seed", type=int, default=1)
     ap.add_argument("--out-root", type=str, default=str(ROOT / "model" / "out" / "dual_mc"))
     ap.add_argument("--force-build", action="store_true")
+    ap.add_argument("--ext-phase", action="store_true",
+                    help="真相位注入模式（SYNC_DIRECT=1 + PHTAB）: 对照实验用")
+    ap.add_argument("--phase-offset", type=int, default=8,
+                    help="真相位标定常数（默认 8, 来自 dev2 成功帧投票）")
     a = ap.parse_args()
 
     cfo_list = [float(x) for x in a.cfo_list.split(",") if x.strip()]
@@ -189,23 +212,28 @@ def main():
     inc_b = (inc_from_cfo(cfo_list[1] if len(cfo_list) > 1 else cfo_list[0])
              if a.inc_b == "auto" else int(a.inc_b))
 
-    simv = build(force=a.force_build)
+    simv = build(force=a.force_build, ext=a.ext_phase)
     out_dir = Path(a.out_root) / a.tag
     meta = run_point(simv, out_dir, cfo_list, a.snr, a.frames, inc_a, inc_b,
-                     seed=a.seed)
+                     seed=a.seed,
+                     phase_offset=a.phase_offset if a.ext_phase else None)
     meta["inc_a"] = inc_a
     meta["inc_b"] = inc_b
+    meta["mode"] = "ext_phase" if a.ext_phase else "scan"
     (out_dir / "meta.json").write_text(json.dumps(meta, indent=2))
 
     res = score(out_dir, meta)
     (out_dir / "result.json").write_text(json.dumps(res, indent=2))
 
     # —— 报告 ——
+    mode_txt = (f"**真相位注入**（(frame_start+{a.phase_offset & 15})&15, 无扫描）"
+                if a.ext_phase else "扫描（SYNC_DIRECT=0, 自由周期 + 帧内可能重写）")
     lines = [
         f"# rx_dual 蒙特卡洛：多设备 × 双通道（{a.tag}）",
         "",
         f"- 帧数 **{res['n_frames']}**，码片 SNR {a.snr:+.0f} dB，"
         f"设备 CFO = {cfo_list} Hz（每帧轮换）",
+        f"- 相位来源: {mode_txt}",
         f"- 通道 A 参数 phase_inc = {inc_a}（码片级，≈ {inc_a/PHASE_FS*CHIP_RATE/1e3:.1f} kHz）",
         f"- 通道 B 参数 phase_inc = {inc_b}（码片级，≈ {inc_b/PHASE_FS*CHIP_RATE/1e3:.1f} kHz）",
         "",

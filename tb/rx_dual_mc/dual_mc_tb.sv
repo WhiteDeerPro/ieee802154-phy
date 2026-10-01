@@ -24,10 +24,16 @@
 //   +CKS=<hex>   激励抽检（mc_gen 的 mem_cks）
 //   +PH=<dec>    +SFD=<dec>                         (门限, 默认同 mc_tb)
 //   +INCA=<dec>  +INCB=<dec>  两通道**码片级**相位增量（满量程 2π = 2^24）
+//   +PHTAB=<file>  相位表注入（需编译时 EXTPH=1）:
+//        每行 "<frame_start_dec> <phase_dec>"; 到达每帧起点前 16 拍把
+//        ext_lock_phase 置为该帧相位（真相位标定: (frame_start+8)&15）。
+//        用于对比实验: 扫描相位 vs 上帝视角正确相位。
+//   -pvalue+dual_mc_tb.EXTPH=1   编译为 1 则 SYNC_DIRECT=1（不例化扫描器）
 // ---------------------------------------------------------------------------
 `timescale 1ns/1ps
 module dual_mc_tb #(
-    parameter integer MAX_SMP = 1 << 25
+    parameter integer MAX_SMP = 1 << 25,
+    parameter integer EXTPH   = 0      // 1: 相位全外置（SYNC_DIRECT=1 + PHTAB）
 ) ();
     // —— 时钟 (16 MHz, 自生成) ——
     reg clk = 0;
@@ -54,6 +60,16 @@ module dual_mc_tb #(
     reg signed [11:0] i_in = 0, q_in = 0;
     reg              dv_in = 0;
 
+    // —— 相位注入（+PHTAB）——
+    reg          ext_en = 0;
+    reg  [3:0]   ext_ph = 0;
+    localparam integer PH_MAX = 8192;
+    longint unsigned ph_k [0:PH_MAX-1];
+    int              ph_v [0:PH_MAX-1];
+    int              ph_n = 0, ph_ptr = 0;
+    string           ph_path = "";
+    int              fd_ph = 0;
+
     // —— DUT: rx_dual（共享前端 + 两通道执行段）——
     wire [7:0] data_a, data_b, len_a, len_b;
     wire       dvld_a, dvld_b, fcs_a, fcs_b, fd_a, fd_b;
@@ -62,11 +78,11 @@ module dual_mc_tb #(
     wire signed [20:0] rot_a_i, rot_a_q, rot_b_i, rot_b_q;
     wire       rot_a_dv, rot_b_dv;
 
-    rx_dual #(.W(21), .PW(24), .SYNC_DIRECT(1'b0)) dut (
+    rx_dual #(.W(21), .PW(24), .SYNC_DIRECT(EXTPH != 0)) dut (
         .clk(clk), .rst_n(rst_n),
         .adc_i(i_in), .adc_q(q_in), .adc_dv(dv_in),
         .ph_thresh(ph_th), .sfd_thresh(sfd_th),
-        .ext_lock_en(1'b0), .ext_lock_phase(4'd0), .rot_load(1'b0),
+        .ext_lock_en(ext_en), .ext_lock_phase(ext_ph), .rot_load(1'b0),
         .phase_inc_chip_a(inc_a), .phase_off_a(24'd0),
         .phase_inc_chip_b(inc_b), .phase_off_b(24'd0),
         .data_a(data_a), .data_valid_a(dvld_a), .psdu_len_a(len_a),
@@ -137,6 +153,14 @@ module dual_mc_tb #(
         if (fd_out != 0 && dv_in && phase_out !== ph_d)
             $fwrite(fd_out, "PHCH %0d %0d\n", k, phase_out);
         ph_d <= phase_out;
+    end
+
+    // —— 诊断: 注入相位的变化历史（EXTK, 便于核对 PHTAB 生效时刻）——
+    reg [3:0] ext_ph_d = 4'h0;
+    always @(posedge clk) begin
+        if (fd_out != 0 && dv_in && ext_en && ext_ph !== ext_ph_d)
+            $fwrite(fd_out, "EXTK %0d %0d\n", k, ext_ph);
+        ext_ph_d <= ext_ph;
     end
 
     // —— 诊断: 指定区间的 sfd_E 全序列（+EDA/+EDB 给出窗口）——
@@ -220,12 +244,32 @@ module dual_mc_tb #(
         rst_n = 1;
         @(negedge clk);
 
+        if ($value$plusargs("PHTAB=%s", ph_path)) begin
+            fd_ph = $fopen(ph_path, "r");
+            if (fd_ph == 0) begin
+                $display("[dual_mc_tb] FATAL cannot open PHTAB %s", ph_path);
+                $finish;
+            end
+            while (ph_n < PH_MAX &&
+                   $fscanf(fd_ph, "%d %d\n", ph_k[ph_n], ph_v[ph_n]) == 2)
+                ph_n = ph_n + 1;
+            $fclose(fd_ph);
+            ext_en = 1;
+            $display("[dual_mc_tb] PHTAB loaded: %0d entries (EXTPH=%0d)",
+                     ph_n, EXTPH);
+        end
+
         fd_out = $fopen(out_path, "w");
         if (fd_out == 0) begin
             $display("[dual_mc_tb] FATAL cannot open out %s", out_path); $finish;
         end
 
         for (k = 0; k < nsmp; k = k + 1) begin
+            // 到达下一帧起点前 16 拍: 切换注入相位（帧间隙处, 不影响前帧）
+            while (ph_ptr < ph_n && k + 16 >= ph_k[ph_ptr]) begin
+                ext_ph = ph_v[ph_ptr][3:0];
+                ph_ptr = ph_ptr + 1;
+            end
             i_in = smp_mem[k][11:0];
             q_in = smp_mem[k][23:12];
             dv_in = 1;

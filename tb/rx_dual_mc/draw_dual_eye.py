@@ -32,7 +32,9 @@ CHIP_RATE = 2e6
 
 D = Path(sys.argv[1] if len(sys.argv) > 1 else
          str(ROOT / "model/out/dual_mc/eye2"))
-raw = np.loadtxt("/tmp/eye_mf.txt", dtype=np.int64)
+DATA = Path(sys.argv[2] if len(sys.argv) > 2 else "/tmp/eye_mf.txt")
+TAG  = sys.argv[4] if len(sys.argv) > 4 else ""
+raw = np.loadtxt(DATA, dtype=np.int64)
 k = raw[:, 0]
 mf = raw[:, 1] + 1j * raw[:, 2]
 gt = np.load(D / "frames.npz")
@@ -76,7 +78,7 @@ for row in range(2):
             # 定量: 与本帧理想波形的归一化匹配度（按帧内偏移切片对齐）
             off0 = int(kk[0] - fs[row])
             rb = 0.0
-            for d in range(0, 24):
+            for d in range(-16, 32):
                 rs_ = REF[row][off0 + d:off0 + d + len(w)]
                 mm = min(len(w), len(rs_))
                 if mm < 4000:
@@ -103,10 +105,11 @@ for row in range(2):
         if row == 1:
             ax.set_xlabel("码片周期内相位 (16 采样折叠)")
 
-fig.suptitle("双通道消旋眼图矩阵 —— 每通道只对参数匹配的设备开眼"
-             "（RTL 采样级 MF 输出 + 理想消旋；每格 %d 条迹线）" % N_TR, fontsize=11)
+fig.suptitle(("双通道消旋眼图矩阵（%s）—— 每通道只对参数匹配的设备开眼"
+              "（RTL 采样级 MF 输出 + 理想消旋；每格 %d 条迹线）"
+              % (TAG, N_TR)), fontsize=11)
 fig.tight_layout(rect=(0, 0, 1, 0.95))
-png = out / "eye_dual.png"
+png = Path(sys.argv[3]) if len(sys.argv) > 3 else out / "eye_dual.png"
 fig.savefig(png, dpi=130)
 print(f"-> {png}")
 
@@ -124,7 +127,7 @@ for row in range(2):
         w = seg if cfo is None else seg * np.exp(-1j * 2 * np.pi * cfo * (kk - kk[0]) / FS)
         off0 = int(kk[0] - fs[row])
         best_r = 0.0
-        for d in range(0, 24):            # 扫描 MF 群延迟（0..24 采样）
+        for d in range(-16, 32):        # 扫描 MF 群延迟（含负方向: 卷积延迟可到 -2）
             ref_seg = REF[row][off0 + d:off0 + d + len(w)]
             m = min(len(w), len(ref_seg))
             if m < 4000:
