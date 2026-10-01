@@ -25,7 +25,10 @@ module preamble_detect #(
     parameter integer PW = 2*W + 6,            // pwr 累加位宽
     parameter signed [23:0] GAMMA_Q = 24'sd0,  // 占位 (由 GAMMA_NUM/SHIFT 给 γ)
     parameter integer GAMMA_NUM = 21,          // γ = GAMMA_NUM / 2^GAMMA_SHIFT
-    parameter integer GAMMA_SHIFT = 5          // 默认 γ ≈ 0.66
+    parameter integer GAMMA_SHIFT = 5,         // 默认 γ ≈ 0.66
+    parameter integer THR_SRC = 0,             // 门限参考: 0=窗能量 pwr(现状); 1=噪声底 nse(CFAR 型)
+    parameter integer NOISE_LEAK = 8,          // 噪声底跟踪: 慢升 1/2^NOISE_LEAK, 快降
+    parameter integer CONF_CNT = 2             // 连续命中确认拍数 (≥2; 2=历史行为)
 ) (
     input  wire                 clk,
     input  wire                 rst_n,
@@ -100,19 +103,33 @@ module preamble_detect #(
     wire [AW:0] a_max = (ai_abs > aq_abs) ? ai_abs : aq_abs;
     wire [AW:0] a_min = (ai_abs > aq_abs) ? aq_abs : ai_abs;
     wire [AW:0] mag_est = a_max + (a_min >> 1) - (a_min >> 3);   // max + 3/8·min
-    // γ·pwr = (GAMMA_NUM · pwr) >> GAMMA_SHIFT
-    wire [PW+15:0] thr = (pwr * GAMMA_NUM) >> GAMMA_SHIFT;
-    wire [PW+15:0] mag_ext = {{(PW+16-AW-1){1'b0}}, mag_est};
+    // ---------------- 噪声底跟踪 (min-tracking: 快降慢升) ----------------
+    // 主流做法: 门限的"参考"取噪声底而非"窗能量"(后者含信号 → 弱信号被自身抬高)。
+    // 快降: pwr<nse 立即跟随 (保证取到低电平); 慢升: 每点 +1/2^NOISE_LEAK。
+    reg [PW-1:0] nse;
+    always @(posedge clk) begin
+        if (!rst_n)
+            nse <= {PW{1'b0}};
+        else if (dv_in && sample_en)
+            nse <= (pwr < nse) ? pwr : (nse + (nse >> NOISE_LEAK) + 1'b1);
+    end
 
-    // 连续 2 个采样点确认 (抗虚警): 前导期 Λ 持续超阈, 噪声尖峰则难连续
-    reg hit_d;
+    // 门限参考: 0=pwr(窗能量, 现状/SNR 型); 1=nse(噪声底, CFAR 型)
+    wire [PW-1:0] thr_ref = THR_SRC ? nse : pwr;
+    wire [PW+15:0] thr = (thr_ref * GAMMA_NUM) >> GAMMA_SHIFT;
+    wire [PW+15:0] mag_ext = {{(PW+16-AW-1){1'b0}}, mag_est};
+    wire hit_cur = (mag_ext > thr);
+
+    // ---------------- 连续 CONF_CNT 拍确认 (抗虚警, 参数化) ----------------
+    // 前导期 Λ 持续超阈; 噪声尖峰难连续。CONF_CNT=2 与历史行为等价。
+    reg [CONF_CNT-1:0] hit_hist;
     always @(posedge clk) begin
         if (!rst_n) begin
             det_pulse <= 1'b0;
-            hit_d     <= 1'b0;
+            hit_hist  <= {CONF_CNT{1'b0}};
         end else if (dv_in && sample_en) begin
-            hit_d     <= (mag_ext > thr);
-            det_pulse <= (mag_ext > thr) && hit_d;
+            hit_hist  <= {hit_hist[CONF_CNT-2:0], hit_cur};
+            det_pulse <= hit_cur & (&hit_hist[CONF_CNT-2:0]);
         end
     end
 endmodule
