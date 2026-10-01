@@ -26,7 +26,8 @@
 `timescale 1ns/1ps
 module rx_frontend #(
     parameter W = 21,
-    parameter SYNC_DIRECT = 1'b0
+    parameter SYNC_DIRECT = 1'b0,
+    parameter RST_EN = 1'b0           // 1: 帧到达（preamble_detect）→ 扫描重启
 ) (
     input  wire               clk,
     input  wire               rst_n,
@@ -59,20 +60,38 @@ module rx_frontend #(
 
     // ---------------- 相位来源：外置 或 扫描 ----------------
     wire [3:0] scan_phase;
+    wire pd_rst;                 // 前导检测电平（仅 RST_EN=1 的扫描路径使用）
     generate
         if (SYNC_DIRECT) begin : g_direct
             assign detect     = ext_lock_en;
             assign scan_phase = ext_lock_phase;
         end else begin : g_scan
-            // 只用它的相位输出: 码片端口悬空, frame_done 接 0（保持扫描, 不复位）
-            // scan_restart = 帧到达 → 每帧在本帧前导上重扫（帧到达相位逐帧不同）
-            preamble_sync #(.W(W)) u_sync (
+            // 帧到达检测（归一化延迟自相关, 对 CFO 免疫）。
+            // ⚠ det_pulse 是**电平**（前导段持续 ~1700 采样, 数据段零星段 ≤480）
+            //   而非单拍事件——重构见 latch 段注释（上升沿 restart + 段确认门控）。
+            preamble_detect #(.W(W)) u_pd (
+                .clk(clk), .rst_n(rst_n),
+                .i_in(mf_i), .q_in(mf_q), .dv_in(mf_dv),
+                .det_pulse(pd_rst)
+            );
+            // 电平上升沿 = 一个活跃段开始 → scan_restart（每段一次）。
+            // 数据段的假 restart 无害: latch 门控保证其锁定不会改写 phase_fix。
+            reg pd_d;
+            always @(posedge clk) begin
+                if (!rst_n) pd_d <= 1'b0;
+                else if (mf_dv) pd_d <= pd_rst;
+            end
+            wire scan_rst = RST_EN ? (pd_rst & ~pd_d) : 1'b0;
+            // 只用它的相位输出: 码片端口悬空, frame_done 接 0（保持扫描, 不复位）。
+            // RST_EN 时 SFD_WAIT 放长 (2^15 > 帧周期): 共享前端里 SFD 永不触发,
+            // 若用原 2^12 超时会在帧内回扫→重锁→改写相位; 改由"下一帧 restart"接管。
+            preamble_sync #(.W(W), .SFD_WAIT(RST_EN ? 15 : 12)) u_sync (
                 .clk(clk), .rst_n(rst_n),
                 .i_in(mf_i), .q_in(mf_q), .dv_in(mf_dv),
                 .ph_thresh(ph_thresh), .sfd_thresh(sfd_thresh),
                 .frame_done(1'b0),
                 .ext_lock_en(1'b0), .ext_lock_phase(4'd0),
-                .scan_restart(1'b0),
+                .scan_restart(scan_rst),
                 .chip_i(), .chip_q(), .chip_dv(),
                 .detect(detect), .frame_start(), .locked_phase(scan_phase)
             );
@@ -86,6 +105,16 @@ module rx_frontend #(
     // 曾试过“用 preamble_detect 的帧到达脉冲开窗（2800 采样）过滤”，在 MC 里把
     // 帧成功率从 ~42% 提到 ~49%，但窗口时机与扫描锁定不匹配会破坏既有 cocotb
     // 回归（单帧场景扫描需 >2800 采样）—— 暂回退，留作待打磨项（见 docs/16）。
+    // —— RST_EN 的 latch 门控（2026-10-01 实测标定）——
+    // 段长 ≥ SEG_TH 才确认"前导段"（数据段零星段 99% ≤435、最大 ~480;
+    // 前导段 ≥1600）。确认后打开 latch 窗口; 本帧 latch 一次即冻结——
+    // 数据段任何锁定都不能改写 phase_fix。时序: restart@帧起点+460 → 重扫
+    // 锁定@+1484（段确认@+972 已开窗）→ 采用 → SFD 起获得正确相位。
+    localparam integer SEG_TH = 512;
+    localparam integer WIN    = 1200;   // 确认后窗宽（覆盖 latch@+1484, 抗段内抖动）
+    reg [12:0] hi_cnt;
+    reg [11:0] win_cnt;
+    reg        latch_armed;
     reg [3:0] phase_fix;
     reg       phase_valid;
     reg       detect_d;
@@ -94,14 +123,35 @@ module rx_frontend #(
             phase_fix   <= 4'd0;
             phase_valid <= 1'b0;
             detect_d    <= 1'b0;
+            hi_cnt      <= 13'd0;
+            win_cnt     <= 12'd0;
+            latch_armed <= 1'b0;
         end else begin
             detect_d <= detect;
+            if (RST_EN && mf_dv) begin
+                // 窗口超时（先判, 后置位覆盖——确认当拍必 arm）
+                if (win_cnt != 12'd0) win_cnt <= win_cnt - 1'b1;
+                else                  latch_armed <= 1'b0;
+                if (pd_rst) begin
+                    if (hi_cnt < SEG_TH) hi_cnt <= hi_cnt + 1'b1;
+                    if (hi_cnt == SEG_TH - 1) begin
+                        latch_armed <= 1'b1;
+                        win_cnt     <= WIN - 1;   // 打开窗口: 不依赖段结束的瞬时电平
+                    end
+                end else begin
+                    hi_cnt <= 13'd0;              // 段计数清零; armed 交给窗口超时
+                end
+            end
             if (SYNC_DIRECT) begin
                 phase_fix   <= ext_lock_phase;
                 phase_valid <= 1'b1;
             end else if (detect && !detect_d) begin
-                phase_fix   <= scan_phase;      // 本帧的锁定相位（前导窗内）
-                phase_valid <= 1'b1;
+                if (!RST_EN || latch_armed) begin
+                    phase_fix   <= scan_phase;  // 本帧的锁定相位
+                    phase_valid <= 1'b1;
+                    latch_armed <= 1'b0;        // 本帧额度用完 → 冻结
+                    win_cnt     <= 12'd0;
+                end
             end
         end
     end

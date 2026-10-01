@@ -35,7 +35,8 @@
 `timescale 1ns/1ps
 module dual_mc_tb #(
     parameter integer MAX_SMP = 1 << 25,
-    parameter integer EXTPH   = 0      // 1: 相位全外置（SYNC_DIRECT=1 + PHTAB）
+    parameter integer EXTPH   = 0,     // 1: 相位全外置（SYNC_DIRECT=1 + PHTAB）
+    parameter integer RSTEN   = 0      // 1: 帧到达 → 扫描重启（RST_EN=1）
 ) ();
     // —— 时钟 (16 MHz, 自生成) ——
     reg clk = 0;
@@ -81,7 +82,7 @@ module dual_mc_tb #(
     wire signed [20:0] rot_a_i, rot_a_q, rot_b_i, rot_b_q;
     wire       rot_a_dv, rot_b_dv;
 
-    rx_dual #(.W(21), .PW(24), .SYNC_DIRECT(EXTPH != 0)) dut (
+    rx_dual #(.W(21), .PW(24), .SYNC_DIRECT(EXTPH != 0), .RST_EN(RSTEN != 0)) dut (
         .clk(clk), .rst_n(rst_n),
         .adc_i(i_in), .adc_q(q_in), .adc_dv(dv_in),
         .ph_thresh(ph_th), .sfd_thresh(sfd_th),
@@ -208,6 +209,22 @@ module dual_mc_tb #(
             if (rot_b_dv) $fwrite(fd_rot, "B %0d %0d %0d\n", k, rot_b_i, rot_b_q);
         end
     end
+
+    // —— 诊断: 扫描重启脉冲 PDR + 扫描状态翻转 SYSC（仅 EXTPH=0 时存在）——
+    generate
+    if (EXTPH == 0) begin : g_pdr
+        wire pd_rst_dbg = dut.u_fe.g_scan.u_pd.det_pulse;
+        wire [1:0] st_dbg = dut.u_fe.g_scan.u_sync.state;
+        reg [1:0] st_d = 2'd0;
+        always @(posedge clk) begin
+            if (fd_out != 0 && dv_in) begin
+                if (pd_rst_dbg)          $fwrite(fd_out, "PDR %0d\n", k);
+                if (st_dbg !== st_d)     $fwrite(fd_out, "SYSC %0d %0d\n", k, st_dbg);
+            end
+            st_d <= st_dbg;
+        end
+    end
+    endgenerate
 
     // —— 主流程 ——
     localparam integer DRAIN = 600;
