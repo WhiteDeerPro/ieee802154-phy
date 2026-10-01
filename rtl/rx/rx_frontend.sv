@@ -27,7 +27,9 @@
 module rx_frontend #(
     parameter W = 21,
     parameter SYNC_DIRECT = 1'b0,
-    parameter RST_EN = 1'b0           // 1: 帧到达（preamble_detect）→ 扫描重启
+    parameter RST_EN = 1'b0,          // 1: 帧到达（preamble_detect）→ 扫描重启
+    parameter integer SEG_TH = 512,   // 前导段确认长度（数据段零星段 ≤480）
+    parameter integer WIN    = 1200   // latch 窗口宽（确认后打开）
 ) (
     input  wire               clk,
     input  wire               rst_n,
@@ -105,13 +107,11 @@ module rx_frontend #(
     // 曾试过“用 preamble_detect 的帧到达脉冲开窗（2800 采样）过滤”，在 MC 里把
     // 帧成功率从 ~42% 提到 ~49%，但窗口时机与扫描锁定不匹配会破坏既有 cocotb
     // 回归（单帧场景扫描需 >2800 采样）—— 暂回退，留作待打磨项（见 docs/16）。
-    // —— RST_EN 的 latch 门控（2026-10-01 实测标定）——
+    // —— RST_EN 的 latch 门控（2026-10-01 实测标定; SEG_TH/WIN 为头部参数, 可 -pvalue 覆盖）——
     // 段长 ≥ SEG_TH 才确认"前导段"（数据段零星段 99% ≤435、最大 ~480;
     // 前导段 ≥1600）。确认后打开 latch 窗口; 本帧 latch 一次即冻结——
     // 数据段任何锁定都不能改写 phase_fix。时序: restart@帧起点+460 → 重扫
     // 锁定@+1484（段确认@+972 已开窗）→ 采用 → SFD 起获得正确相位。
-    localparam integer SEG_TH = 512;
-    localparam integer WIN    = 1200;   // 确认后窗宽（覆盖 latch@+1484, 抗段内抖动）
     reg [12:0] hi_cnt;
     reg [11:0] win_cnt;
     reg        latch_armed;
