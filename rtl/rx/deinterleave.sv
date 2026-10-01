@@ -19,9 +19,12 @@ module deinterleave #(
     input  wire [3:0]         phase,
     output reg  signed [W-1:0] chip_i,
     output reg  signed [W-1:0] chip_q,
-    output reg                chip_dv
+    output reg                chip_dv,
+    output wire [3:0]         s16_out          // 自由计数器当前相位(供前端网格对齐门用)
 );
     reg [15:0] smp_cnt;
+
+    assign s16_out = smp_cnt[3:0];
 
     wire [3:0] s16  = smp_cnt[3:0];
     wire       even = (s16 == phase);             // 偶片峰位置 = phase

@@ -30,7 +30,8 @@ module rx_frontend #(
     parameter RST_EN = 1'b0,          // 1: 帧到达（preamble_detect）→ 扫描重启
     parameter integer SEG_TH = 512,   // 前导段确认长度（数据段零星段 ≤480）
     parameter integer WIN    = 1200,  // latch 窗口宽（确认后打开）
-    parameter integer PH_SHIFT = 0    // 锁定值相位修正（采样; 实测最优 off=10 vs 锁定值 8）
+    parameter integer PH_SHIFT = 0,   // 锁定值相位修正（采样; 实测最优 off=10 vs 锁定值 8）
+    parameter integer ALIGN_GATE = 1  // 1: 网格对齐门（latch 延迟到抽取网格 0/4 拍再生效）
 ) (
     input  wire               clk,
     input  wire               rst_n,
@@ -136,11 +137,15 @@ module rx_frontend #(
     reg        latch_armed;
     reg [3:0] phase_fix;
     reg       phase_valid;
+    reg        latch_pend;        // 网格对齐门: latch 挂起中
+    reg [3:0]  latch_pend_val;    // 挂起的目标相位
+    wire [3:0] deint_s16;         // 去交错自由计数器当前相位
     reg       detect_d;
     always @(posedge clk) begin
         if (!rst_n) begin
             phase_fix   <= 4'd0;
             phase_valid <= 1'b0;
+            latch_pend  <= 1'b0;
             detect_d    <= 1'b0;
             hi_cnt      <= 13'd0;
             win_cnt     <= 12'd0;
@@ -166,11 +171,26 @@ module rx_frontend #(
                 phase_valid <= 1'b1;
             end else if (detect && !detect_d) begin
                 if (!RST_EN || latch_armed) begin
-                    phase_fix   <= scan_phase + PH_SHIFT[3:0];  // 本帧的锁定相位（含修正）
-                    phase_valid <= 1'b1;
+                    if (ALIGN_GATE && RST_EN) begin
+                        // 网格对齐门(仅 RST_EN 的新扫描路径): 不立即写, 挂起到"抽取点(落点0)或其次4拍(落点4)"再写。
+                        // 边界扫描实测(dev1): 切换点在抽取网格 0/4 → 50/50; 8 → 44; 12 → 32。
+                        // RST_EN=0 的旧单帧路径保持立即写（cocotb 回归时序依赖）
+                        latch_pend     <= 1'b1;
+                        latch_pend_val <= scan_phase + PH_SHIFT[3:0];
+                    end else begin
+                        phase_fix   <= scan_phase + PH_SHIFT[3:0];  // 本帧的锁定相位（含修正）
+                        phase_valid <= 1'b1;
+                    end
                     latch_armed <= 1'b0;        // 本帧额度用完 → 冻结
                     win_cnt     <= 12'd0;
                 end
+            end
+            // 网格对齐门: 自由计数器到达目标相位(落点0)或目标+4(落点4)的那一拍写出
+            if (!SYNC_DIRECT && latch_pend &&
+                (deint_s16 == latch_pend_val || deint_s16 == latch_pend_val + 4'd4)) begin
+                phase_fix   <= latch_pend_val;
+                phase_valid <= 1'b1;
+                latch_pend  <= 1'b0;
             end
         end
     end
@@ -181,6 +201,7 @@ module rx_frontend #(
         .clk(clk), .rst_n(rst_n),
         .i_in(mf_i), .q_in(mf_q), .dv_in(mf_dv),
         .phase(phase_fix),
-        .chip_i(chip_i), .chip_q(chip_q), .chip_dv(chip_dv)
+        .chip_i(chip_i), .chip_q(chip_q), .chip_dv(chip_dv),
+        .s16_out(deint_s16)
     );
 endmodule
