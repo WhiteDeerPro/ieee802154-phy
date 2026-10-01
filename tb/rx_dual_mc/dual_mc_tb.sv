@@ -72,6 +72,14 @@ module dual_mc_tb #(
     int              ph_v [0:PH_MAX-1];
     int              ph_n = 0, ph_ptr = 0;
     int              ph_adv = 16;   // +PHADV: 相位切换提前量(拍). 16=标称(帧前16拍); 0=帧起点; 负=帧内迟切(边界扫描后门)
+    // —— 多段替换表（+SWAPTAB，上位机灵活决策）——
+    localparam integer ST_MAX = 256;
+    longint unsigned st_k [0:ST_MAX-1];
+    int              st_a [0:ST_MAX-1];
+    int              st_b [0:ST_MAX-1];
+    int              st_n = 0, st_ptr = 0;
+    string           st_path = "";
+    int              fd_st = 0;
     string           ph_path = "";
     int              fd_ph = 0;
 
@@ -342,6 +350,18 @@ module dual_mc_tb #(
             $display("[dual_mc_tb] PHTAB loaded: %0d entries (EXTPH=%0d)",
                      ph_n, EXTPH);
         end
+        if ($value$plusargs("SWAPTAB=%s", st_path)) begin
+            fd_st = $fopen(st_path, "r");
+            if (fd_st == 0) begin
+                $display("[dual_mc_tb] FATAL cannot open SWAPTAB %s", st_path);
+                $finish;
+            end
+            while (st_n < ST_MAX &&
+                   $fscanf(fd_st, "%d %d %d\n", st_k[st_n], st_a[st_n], st_b[st_n]) == 3)
+                st_n = st_n + 1;
+            $fclose(fd_st);
+            $display("[dual_mc_tb] SWAPTAB loaded: %0d entries", st_n);
+        end
 
         fd_out = $fopen(out_path, "w");
         if (fd_out == 0) begin
@@ -351,6 +371,12 @@ module dual_mc_tb #(
         for (k = 0; k < nsmp; k = k + 1) begin
             // 运行时替换通道 B 参数（帧间时刻触发）
             if (swapb_arg != 0 && k == swapk_arg) inc_b = swapb_arg[23:0];
+            // 多段替换表: +SWAPTAB（每行 k inc_a inc_b; 0=该通道不改）——上位机轮换/决策
+            while (st_ptr < st_n && longint'(k) >= longint'(st_k[st_ptr])) begin
+                if (st_a[st_ptr][23:0] != 0) inc_a = st_a[st_ptr][23:0];
+                if (st_b[st_ptr][23:0] != 0) inc_b = st_b[st_ptr][23:0];
+                st_ptr = st_ptr + 1;
+            end
             // 到达下一帧起点前 16 拍: 切换注入相位（帧间隙处, 不影响前帧）
             // PHADV 可调: 正=提前量(标称16); 0=帧起点切换; 负=帧内第|PHADV|拍才切(迟切边界)
             while (ph_ptr < ph_n && longint'(k) + ph_adv >= longint'(ph_k[ph_ptr])) begin
