@@ -71,6 +71,7 @@ module dual_mc_tb #(
     longint unsigned ph_k [0:PH_MAX-1];
     int              ph_v [0:PH_MAX-1];
     int              ph_n = 0, ph_ptr = 0;
+    int              ph_adv = 16;   // +PHADV: 相位切换提前量(拍). 16=标称(帧前16拍); 0=帧起点; 负=帧内迟切(边界扫描后门)
     string           ph_path = "";
     int              fd_ph = 0;
 
@@ -326,6 +327,7 @@ module dual_mc_tb #(
         rst_n = 1;
         @(negedge clk);
 
+        void'($value$plusargs("PHADV=%d", ph_adv));
         if ($value$plusargs("PHTAB=%s", ph_path)) begin
             fd_ph = $fopen(ph_path, "r");
             if (fd_ph == 0) begin
@@ -350,7 +352,8 @@ module dual_mc_tb #(
             // 运行时替换通道 B 参数（帧间时刻触发）
             if (swapb_arg != 0 && k == swapk_arg) inc_b = swapb_arg[23:0];
             // 到达下一帧起点前 16 拍: 切换注入相位（帧间隙处, 不影响前帧）
-            while (ph_ptr < ph_n && k + 16 >= ph_k[ph_ptr]) begin
+            // PHADV 可调: 正=提前量(标称16); 0=帧起点切换; 负=帧内第|PHADV|拍才切(迟切边界)
+            while (ph_ptr < ph_n && longint'(k) + ph_adv >= longint'(ph_k[ph_ptr])) begin
                 ext_ph = ph_v[ph_ptr][3:0];
                 ph_ptr = ph_ptr + 1;
             end
