@@ -29,6 +29,12 @@ module rx_dual #(
     input  wire [47:0]        ph_thresh,
     input  wire [47:0]        sfd_thresh,
     input  wire [15:0]        sfd_norm_th = 16'd0,   // SFD 归一化门限 Q8（0=绝对）
+    // ---- 前导缓冲读口（I-13, 透传共享前端）----
+    input  wire [11:0]         pbuf_addr = 12'd0,
+    input  wire                pbuf_clr  = 1'b0,
+    output wire signed [W-1:0] pbuf_i,
+    output wire signed [W-1:0] pbuf_q,
+    output wire                pbuf_done,
     input  wire               ext_lock_en,
     input  wire [3:0]         ext_lock_phase,
     input  wire               rot_load,
@@ -69,6 +75,8 @@ module rx_dual #(
         .adc_i(adc_i), .adc_q(adc_q), .adc_dv(adc_dv),
         .ph_thresh(ph_thresh), .sfd_thresh(sfd_thresh),
         .ext_lock_en(ext_lock_en), .ext_lock_phase(ext_lock_phase),
+        .pbuf_addr(pbuf_addr), .pbuf_clr(pbuf_clr),
+        .pbuf_i(pbuf_i), .pbuf_q(pbuf_q), .pbuf_done(pbuf_done),
         .chip_i(chip_i), .chip_q(chip_q), .chip_dv(chip_dv),
         .phase_out(phase_out), .detect(detect),
         .mf_i(), .mf_q(), .mf_dv()

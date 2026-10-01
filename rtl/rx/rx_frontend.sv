@@ -42,6 +42,12 @@ module rx_frontend #(
     input  wire [47:0]        sfd_thresh,
     input  wire               ext_lock_en,
     input  wire [3:0]         ext_lock_phase,
+    // ---- 前导缓冲读口（I-13; 仅扫描路径例化, 相位外置时 done=0）----
+    input  wire [11:0]         pbuf_addr = 12'd0,
+    input  wire                pbuf_clr  = 1'b0,
+    output wire signed [W-1:0] pbuf_i,
+    output wire signed [W-1:0] pbuf_q,
+    output wire                pbuf_done,
     // ---- 去交错后的码片流（**未消旋**, 供各通道消旋）----
     output wire signed [W-1:0] chip_i,
     output wire signed [W-1:0] chip_q,
@@ -67,6 +73,9 @@ module rx_frontend #(
         if (SYNC_DIRECT) begin : g_direct
             assign detect     = ext_lock_en;
             assign scan_phase = ext_lock_phase;
+            assign pbuf_i     = {W{1'b0}};
+            assign pbuf_q     = {W{1'b0}};
+            assign pbuf_done  = 1'b0;
         end else begin : g_scan
             // 帧到达检测（归一化延迟自相关, 对 CFO 免疫）。
             // ⚠ det_pulse 是**电平**（前导段持续 ~1700 采样, 数据段零星段 ≤480）
@@ -83,7 +92,8 @@ module rx_frontend #(
                 if (!rst_n) pd_d <= 1'b0;
                 else if (mf_dv) pd_d <= pd_rst;
             end
-            wire scan_rst = RST_EN ? (pd_rst & ~pd_d) : 1'b0;
+            wire pd_rise = pd_rst & ~pd_d;     // 帧到达沿（不受 RST_EN 门控, pbuf 也用）
+            wire scan_rst = RST_EN ? pd_rise : 1'b0;
             // 只用它的相位输出: 码片端口悬空, frame_done 接 0（保持扫描, 不复位）。
             // RST_EN 时 SFD_WAIT 放长 (2^15 > 帧周期): 共享前端里 SFD 永不触发,
             // 若用原 2^12 超时会在帧内回扫→重锁→改写相位; 改由"下一帧 restart"接管。
@@ -96,6 +106,14 @@ module rx_frontend #(
                 .scan_restart(scan_rst),
                 .chip_i(), .chip_q(), .chip_dv(),
                 .detect(detect), .frame_start(), .locked_phase(scan_phase)
+            );
+            // —— 前导缓冲（I-13）: MF 采样级环形缓冲, 帧到达沿触发 ——
+            preamble_buf #(.W(W)) u_pbuf (
+                .clk(clk), .rst_n(rst_n),
+                .i_in(mf_i), .q_in(mf_q), .dv_in(mf_dv),
+                .trig(pd_rise), .clr(pbuf_clr),
+                .rd_addr(pbuf_addr),
+                .rd_i(pbuf_i), .rd_q(pbuf_q), .done(pbuf_done)
             );
         end
     endgenerate

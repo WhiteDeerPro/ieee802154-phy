@@ -44,6 +44,7 @@ SOURCES = [
     "rtl/rx/cfo_rot.sv",
     "rtl/rx/preamble_sync.sv",
     "rtl/rx/preamble_detect.sv",
+    "rtl/rx/preamble_buf.sv",
     "rtl/rx/deinterleave.sv",
     "rtl/rx/sfd_detect.sv",
     "rtl/rx/rx_frontend.sv",

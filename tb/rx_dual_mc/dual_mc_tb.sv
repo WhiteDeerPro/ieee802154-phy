@@ -81,6 +81,10 @@ module dual_mc_tb #(
     wire       detect;
     wire signed [20:0] rot_a_i, rot_a_q, rot_b_i, rot_b_q;
     wire       rot_a_dv, rot_b_dv;
+    wire signed [20:0] pbuf_i, pbuf_q;
+    wire               pbuf_done;
+    reg  [11:0]        pbuf_addr = 12'd0;
+    reg                pbuf_clr  = 1'b0;
 
     rx_dual #(.W(21), .PW(24), .SYNC_DIRECT(EXTPH != 0), .RST_EN(RSTEN != 0)) dut (
         .clk(clk), .rst_n(rst_n),
@@ -98,6 +102,8 @@ module dual_mc_tb #(
         .rot_a_i(rot_a_i), .rot_a_q(rot_a_q),
         .rot_b_i(rot_b_i), .rot_b_q(rot_b_q),
         .rot_a_dv(rot_a_dv), .rot_b_dv(rot_b_dv),
+        .pbuf_addr(pbuf_addr), .pbuf_clr(pbuf_clr),
+        .pbuf_i(pbuf_i), .pbuf_q(pbuf_q), .pbuf_done(pbuf_done),
         .any_fcs_ok()
     );
 
@@ -178,6 +184,39 @@ module dual_mc_tb #(
         if (fd_out != 0 && dv_in && edb > eda && k >= eda && k <= edb
             && dut.u_be_a.u_sfd.chip_dv)
             $fwrite(fd_out, "SFW %0d %0d\n", k, dut.u_be_a.u_sfd.sfd_E);
+    end
+
+    // —— 前导缓冲 dump: +PBUF=<path>（I-13; done 上升沿后立即扫 3072 地址）——
+    // 缓冲在 done 后冻结写入, 故读出内容在扫描期间恒有效。
+    string pbuf_path = "";
+    int    fd_pbuf = 0;
+    initial begin
+        if ($value$plusargs("PBUF=%s", pbuf_path)) fd_pbuf = $fopen(pbuf_path, "w");
+    end
+    reg        pb_run  = 1'b0;
+    reg [12:0] pb_cnt  = 13'd0;
+    reg        pb_dn_d = 1'b0;
+    always @(posedge clk) begin
+        pb_dn_d <= pbuf_done;
+        if (fd_pbuf != 0) begin
+            if (pbuf_done && !pb_dn_d && !pb_run) begin
+                pb_run <= 1'b1;
+                pb_cnt <= 13'd0;
+                $display("[dual_mc_tb] PBUF capture done @k=%0d, dumping...", k);
+            end else if (pb_run) begin
+                pbuf_addr <= pb_cnt[11:0];
+                if (pb_cnt > 0)
+                    $fwrite(fd_pbuf, "%0d %0d %0d\n", pb_cnt - 1, pbuf_i, pbuf_q);
+                if (pb_cnt == 13'd3072) begin
+                    pb_run <= 1'b0;
+                    $display("[dual_mc_tb] PBUF dumped: 3072 samples");
+                    $fclose(fd_pbuf);
+                    fd_pbuf = 0;
+                end else begin
+                    pb_cnt <= pb_cnt + 1'b1;
+                end
+            end
+        end
     end
 
     // —— 眼图 dump: +EYEDUMP=<path> +EYES=<start> +EYEE=<end>（采样级 MF 输出）——
@@ -316,6 +355,9 @@ module dual_mc_tb #(
         q_in = 0;
 
         repeat (DRAIN) @(posedge clk);
+
+        // （前导缓冲的读出已移至 done 上升沿的并行进程, 详见上方 pbuf dump 段）
+
         $fclose(fd_out);
         if (fd_rot != 0) $fclose(fd_rot);
         if (fd_eye != 0) $fclose(fd_eye);
