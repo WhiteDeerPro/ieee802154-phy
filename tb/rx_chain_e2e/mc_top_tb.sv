@@ -82,6 +82,15 @@ module mc_top_tb #(
         end
     end
 
+    // ---- DPI 观测器（"固件在环"最小演示）: +DPI=1 启用 ----
+    // C 侧 observer_dpi.c 与 model/upper/observer.py 同结构；本 tb 在每次
+    // est_done 把 (估计值, 质量分子/分母) 喂给它，LOCK 后经外部参数通道接管消旋。
+    import "DPI-C" function int observer_dpi_step(input int inc_fx, input int num, input int den);
+    integer dpi_en    = 0;
+    integer dpi_ret   = 0;
+    integer dpi_state = 0;
+    initial if ($value$plusargs("DPI=%d", dpi_en)) ;
+
     rx_top #(.W(21), .EST_CHIP_OFF_AUTO(CHIP_OFF_P[7:0]), .EST_NSMP(NSMP_P),
              .EST_SKIP_T3_AUTO(SKIP_T3_P != 0)) u_top (
         .clk(clk), .rst_n(rst_n),
@@ -108,10 +117,23 @@ module mc_top_tb #(
             if (data_valid)       $fwrite(fd_out, "BYT %0d %0d\n", k, data_out);
             if (frame_done)       $fwrite(fd_out, "FRM %0d %0d %0d\n", k, psdu_len, fcs_ok);
             if (detect && !det_d) $fwrite(fd_out, "DET %0d %0d\n", k, locked_phase);
-            if (u_top.est_done)   $fwrite(fd_out, "EST %0d %0d %0d %0d %0d %0d\n", k, u_top.phase_inc,
-                                          u_top.est_ok, u_top.u_est.pbest,
-                                          u_top.u_est.aa_i + u_top.u_est.aa_q,
-                                          u_top.u_est.am[u_top.u_est.pbest]);
+            if (u_top.est_done) begin
+                $fwrite(fd_out, "EST %0d %0d %0d %0d %0d %0d\n", k, u_top.phase_inc,
+                        u_top.est_ok, u_top.u_est.pbest,
+                        u_top.u_est.aa_i + u_top.u_est.aa_q,
+                        u_top.u_est.am[u_top.u_est.pbest]);
+                if (dpi_en) begin
+                    dpi_ret   = observer_dpi_step(u_top.phase_inc,
+                                                  u_top.u_est.aa_i + u_top.u_est.aa_q,
+                                                  u_top.u_est.am[u_top.u_est.pbest]);
+                    dpi_state = (dpi_ret >> 24) & 8'hFF;
+                    if (dpi_state == 2) begin        // LOCK: 接管消旋参数
+                        EXT_INC_V  = dpi_ret[23:0];
+                        EXT_INC_EN = 1'b1;
+                    end
+                    $fwrite(fd_out, "DPI %0d %0d %0d\n", k, dpi_state, dpi_ret[23:0]);
+                end
+            end
             if (u_top.pd_det && u_top.u_pdet.sample_en)
                 $fwrite(fd_out, "PDT %0d\n", k);   // 仅在采样拍记录 (det_pulse 保持到下次采样)
             if (dump_len > 0 && k >= dump_start && k < dump_start + dump_len && u_top.u_est.k0)
