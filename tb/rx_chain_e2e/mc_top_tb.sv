@@ -71,12 +71,24 @@ module mc_top_tb #(
     wire [7:0]  data_out, psdu_len;
     wire        data_valid, fcs_ok, frame_done;
 
+    // 外部参数通道（决策层解耦）: 默认关闭走内部估计; +EXTINC=<值> 可强开
+    integer           ext_inc_tmp;
+    reg               EXT_INC_EN = 1'b0;
+    reg signed [23:0] EXT_INC_V  = 24'sd0;
+    initial begin
+        if ($value$plusargs("EXTINC=%d", ext_inc_tmp)) begin
+            EXT_INC_EN = 1'b1;
+            EXT_INC_V  = ext_inc_tmp[23:0];
+        end
+    end
+
     rx_top #(.W(21), .EST_CHIP_OFF_AUTO(CHIP_OFF_P[7:0]), .EST_NSMP(NSMP_P),
              .EST_SKIP_T3_AUTO(SKIP_T3_P != 0)) u_top (
         .clk(clk), .rst_n(rst_n),
         .adc_i(i_in), .adc_q(q_in), .adc_dv(dv_in),
         .cfo_en(cfo_en), .est_start(est_start_r), .rot_load(rot_load_r),
         .trig_ext(trig_ext_r),
+        .ext_inc_en(EXT_INC_EN), .ext_inc(EXT_INC_V), .ext_phase_off(24'd0),
         .ph_thresh(ph_th), .sfd_thresh(sfd_th),
         .detect(detect), .locked_phase(locked_phase),
         .frame_start(frame_start), .busy(busy),

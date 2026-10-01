@@ -10,6 +10,9 @@
 //     (帧间隔 mod 2048 的漂移步长), 不可用。真实触发源应为**前导能量检测**
 //     (见 docs/08 I-6), 验证阶段由 TB 以"帧起点"信息驱动。
 //   * rot_load 保留端口: 当前相位无失判据下不必须, 默认可悬空接 0。
+//   * ext_inc_en/ext_inc/ext_phase_off: **外部参数通道** —— 决策层解耦接口，
+//     消旋参数可由上位机/软件直接喂（估计与发现属软件层, docs/12）；
+//     置 ext_inc_en=1 时内部 cfo_est 的采纳结果被旁路。
 // ---------------------------------------------------------------------------
 `timescale 1ns/1ps
 module rx_top #(
@@ -63,6 +66,12 @@ module rx_top #(
     input  wire               cfo_en,       // 1: 启用消旋; 0: inc=0 旁路
     input  wire               est_start,    // 外部触发 (诊断/对比用, trig_ext=1 时生效)
     input  wire               rot_load,     // 单拍脉冲: 相位累加器归零 (可接 0)
+    // ---- 外部参数通道（决策层解耦, 见 docs/12 / docs/16）----
+    // 消旋参数可以由上位机/软件直接喂（估计/发现属于软件层）；
+    // 内部 cfo_est 只是"自包含降级路径"（docs/14 I-14），默认仍走它。
+    input  wire               ext_inc_en,   // 1: 消旋参数取自 ext_inc（内部估计旁路）
+    input  wire signed [PW-1:0] ext_inc,    // 外部相位增量（每采样, 满量程 2π）
+    input  wire [PW-1:0]        ext_phase_off, // 外部帧起点相位（默认 0）
     input  wire               trig_ext,     // 0: 用内部检测器触发 (自主); 1: 用外部 est_start
     input  wire [47:0]        ph_thresh,    // 前导锁定门限
     input  wire [47:0]        sfd_thresh,   // SFD 相关门限
@@ -185,7 +194,9 @@ module rx_top #(
     cfo_rot #(.W(W)) u_rot (
         .clk(clk), .rst_n(rst_n),
         .i_in(mf_i), .q_in(mf_q), .dv_in(mf_dv),
-        .load(rot_load), .phase_inc(inc_reg), .phase_off({PW{1'b0}}),
+        .load(rot_load),
+        .phase_inc(ext_inc_en ? ext_inc : inc_reg),   // 外部参数通道 / 内部估计
+        .phase_off(ext_phase_off),
         .i_out(rot_i), .q_out(rot_q), .dv_out(rot_dv)
     );
 

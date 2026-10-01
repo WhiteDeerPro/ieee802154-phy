@@ -249,6 +249,8 @@ def run_point(snr, cfo_hz, frames, args, simv, data_dir):
         sim_cmd.append(f"+FDELAY={args.fdelay}")    # 顶层链: 触发点相对帧起点额外偏移
     if getattr(args, "top_chain", False) and args.trigext != 1:
         sim_cmd.append(f"+TRIGEXT={args.trigext}")  # 0: 自主 (detect) 触发
+    if getattr(args, "top_chain", False) and getattr(args, "extinc", None) is not None:
+        sim_cmd.append(f"+EXTINC={args.extinc}")    # 外部参数通道: 强制 phase_inc
     r = subprocess.run(sim_cmd, cwd=pdir, env=VCS_ENV, capture_output=True, text=True)
     if r.returncode != 0 or "done:" not in r.stdout:
         (pdir / "sim.log").write_text(
@@ -294,6 +296,8 @@ def main():
                     help="顶层链专用: 自主触发的 EST_SKIP_T3_AUTO (默认 0)")
     ap.add_argument("--trigext", type=int, default=1,
                     help="顶层链专用: 1=外部 est_start (默认); 0=自主 detect 触发")
+    ap.add_argument("--extinc", type=int, default=None,
+                    help="外部参数通道: 强制 phase_inc=<24bit 有符号> (绕开内部估计; 正式端口 ext_inc)")
     ap.add_argument("--force-build", action="store_true")
     ap.add_argument("--fixinc", type=int, default=None,
                     help="诊断: 固定 phase_inc (跳过估计); 0 = 完全不消旋; 顶层链/CFO 链均有效")
