@@ -265,6 +265,13 @@ module dual_mc_tb #(
     end
     endgenerate
 
+    // —— 通道参数运行时替换: +SWAPK=<k> +SWAPB=<chip_inc>（帧间生效; I-10 协议雏形）——
+    longint unsigned swapk_arg = 0, swapb_arg = 0;
+    initial begin
+        void'($value$plusargs("SWAPK=%d", swapk_arg));
+        void'($value$plusargs("SWAPB=%d", swapb_arg));
+    end
+
     // —— 主流程 ——
     localparam integer DRAIN = 600;
 
@@ -340,6 +347,8 @@ module dual_mc_tb #(
         end
 
         for (k = 0; k < nsmp; k = k + 1) begin
+            // 运行时替换通道 B 参数（帧间时刻触发）
+            if (swapb_arg != 0 && k == swapk_arg) inc_b = swapb_arg[23:0];
             // 到达下一帧起点前 16 拍: 切换注入相位（帧间隙处, 不影响前帧）
             while (ph_ptr < ph_n && k + 16 >= ph_k[ph_ptr]) begin
                 ext_ph = ph_v[ph_ptr][3:0];
