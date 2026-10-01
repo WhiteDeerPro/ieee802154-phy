@@ -29,7 +29,8 @@ module rx_frontend #(
     parameter SYNC_DIRECT = 1'b0,
     parameter RST_EN = 1'b0,          // 1: 帧到达（preamble_detect）→ 扫描重启
     parameter integer SEG_TH = 512,   // 前导段确认长度（数据段零星段 ≤480）
-    parameter integer WIN    = 1200   // latch 窗口宽（确认后打开）
+    parameter integer WIN    = 1200,  // latch 窗口宽（确认后打开）
+    parameter integer PH_SHIFT = 0    // 锁定值相位修正（采样; 实测最优 off=10 vs 锁定值 8）
 ) (
     input  wire               clk,
     input  wire               rst_n,
@@ -165,7 +166,7 @@ module rx_frontend #(
                 phase_valid <= 1'b1;
             end else if (detect && !detect_d) begin
                 if (!RST_EN || latch_armed) begin
-                    phase_fix   <= scan_phase;  // 本帧的锁定相位
+                    phase_fix   <= scan_phase + PH_SHIFT[3:0];  // 本帧的锁定相位（含修正）
                     phase_valid <= 1'b1;
                     latch_armed <= 1'b0;        // 本帧额度用完 → 冻结
                     win_cnt     <= 12'd0;
