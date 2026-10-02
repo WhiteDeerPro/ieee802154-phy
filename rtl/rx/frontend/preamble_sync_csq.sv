@@ -20,7 +20,8 @@ module preamble_sync #(
     parameter E_W         = 48,
     parameter EWIN        = 512,  // 能量窗拍数（定相用）
     parameter NCNT        = 16,   // 连续合格片数（重叠评估, ≈持久 47 片）
-    parameter CREF        = 128   // 相位刷新周期（拍）
+    parameter CREF        = 128,  // 相位刷新周期（拍）
+    parameter SFD_EN     = 1'b1  // 1: 生成 SFD 窗/frame_start（单通道）; 0: 裁剪（共享前端下输出悬空）
 ) (
     input  wire                    clk,
     input  wire                    rst_n,
@@ -140,21 +141,27 @@ module preamble_sync #(
     reg signed [ACC_W+6:0] waccI, waccQ;
     integer tj;
     always @* begin
-        waccI = t64(6'd63) ? {{(ACC_W+7-W){d_i[W-1]}}, d_i}
-                           : -{{(ACC_W+7-W){d_i[W-1]}}, d_i};
-        waccQ = t64(6'd63) ? {{(ACC_W+7-W){d_q[W-1]}}, d_q}
-                           : -{{(ACC_W+7-W){d_q[W-1]}}, d_q};
-        for (tj = 0; tj < 63; tj = tj + 1) begin
-            if (t64(tj)) begin
-                waccI = waccI + {{(ACC_W+7-W){sfd_si[tj+1][W-1]}}, sfd_si[tj+1]};
-                waccQ = waccQ + {{(ACC_W+7-W){sfd_sq[tj+1][W-1]}}, sfd_sq[tj+1]};
-            end else begin
-                waccI = waccI - {{(ACC_W+7-W){sfd_si[tj+1][W-1]}}, sfd_si[tj+1]};
-                waccQ = waccQ - {{(ACC_W+7-W){sfd_sq[tj+1][W-1]}}, sfd_sq[tj+1]};
+        if (SFD_EN) begin
+            waccI = t64(6'd63) ? {{(ACC_W+7-W){d_i[W-1]}}, d_i}
+                               : -{{(ACC_W+7-W){d_i[W-1]}}, d_i};
+            waccQ = t64(6'd63) ? {{(ACC_W+7-W){d_q[W-1]}}, d_q}
+                               : -{{(ACC_W+7-W){d_q[W-1]}}, d_q};
+            for (tj = 0; tj < 63; tj = tj + 1) begin
+                if (t64(tj)) begin
+                    waccI = waccI + {{(ACC_W+7-W){sfd_si[tj+1][W-1]}}, sfd_si[tj+1]};
+                    waccQ = waccQ + {{(ACC_W+7-W){sfd_sq[tj+1][W-1]}}, sfd_sq[tj+1]};
+                end else begin
+                    waccI = waccI - {{(ACC_W+7-W){sfd_si[tj+1][W-1]}}, sfd_si[tj+1]};
+                    waccQ = waccQ - {{(ACC_W+7-W){sfd_sq[tj+1][W-1]}}, sfd_sq[tj+1]};
+                end
             end
+        end else begin
+            waccI = {(ACC_W+7){1'b0}};
+            waccQ = {(ACC_W+7){1'b0}};
         end
     end
-    wire [2*(ACC_W+7)-1:0] sfd_E = waccI*waccI + waccQ*waccQ;
+    wire [2*(ACC_W+7)-1:0] sfd_E = SFD_EN ? (waccI*waccI + waccQ*waccQ)
+                                          : {2*(ACC_W+7){1'b0}};
 
     integer pp, pj;
 
@@ -196,8 +203,10 @@ module preamble_sync #(
                 ebf[pp] <= {EWB{1'b0}};
             end
             for (pp = 0; pp < 64; pp = pp + 1) begin
-                sfd_si[pp] <= {W{1'b0}};
-                sfd_sq[pp] <= {W{1'b0}};
+                if (SFD_EN) begin
+                    sfd_si[pp] <= {W{1'b0}};
+                    sfd_sq[pp] <= {W{1'b0}};
+                end
             end
         end else if (dv_in) begin
             smp_cnt     <= smp_cnt + 16'd1;
@@ -273,18 +282,20 @@ module preamble_sync #(
                         chip_i      <= d_i;
                         chip_q      <= d_q;
                         chip_dv     <= 1'b1;
-                        frame_start <= fs_pending;
+                        frame_start <= SFD_EN ? fs_pending : 1'b0;
                         fs_pending  <= 1'b0;
-                        for (pp = 0; pp < 63; pp = pp + 1) begin
-                            sfd_si[pp] <= sfd_si[pp+1];
-                            sfd_sq[pp] <= sfd_sq[pp+1];
-                        end
-                        sfd_si[63] <= d_i;
-                        sfd_sq[63] <= d_q;
-                        sfd_n <= (sfd_n < 7'd127) ? sfd_n + 7'd1 : sfd_n;
-                        if (!sfd_found && sfd_n >= 7'd63 && sfd_E >= sfd_thresh) begin
-                            fs_pending <= 1'b1;
-                            sfd_found  <= 1'b1;
+                        if (SFD_EN) begin
+                            for (pp = 0; pp < 63; pp = pp + 1) begin
+                                sfd_si[pp] <= sfd_si[pp+1];
+                                sfd_sq[pp] <= sfd_sq[pp+1];
+                            end
+                            sfd_si[63] <= d_i;
+                            sfd_sq[63] <= d_q;
+                            sfd_n <= (sfd_n < 7'd127) ? sfd_n + 7'd1 : sfd_n;
+                            if (!sfd_found && sfd_n >= 7'd63 && sfd_E >= sfd_thresh) begin
+                                fs_pending <= 1'b1;
+                                sfd_found  <= 1'b1;
+                            end
                         end
                     end
                 end

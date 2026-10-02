@@ -14,7 +14,7 @@
 ## 2. edge 抖动扫描（140 帧）
 
 - simv_ps_a16: 94/140（判据 ≥93） PASS
-- simv_ps_csq: 94/140（判据 ≥85） PASS
+- simv_ps_csq: 94/140（判据 ≥92） PASS
 
 ## 3. 主流量
 
@@ -25,4 +25,4 @@
 - mixdev1 simv_ps_a16: FA 127 / FB 50（判据 FA≥126, FB≥49） PASS
 - mixdev1 simv_ps_csq: FA 128 / FB 50（判据 FA≥126, FB≥49） PASS
 
-**总结: ALL PASS**（耗时 172s）
+**总结: ALL PASS**（耗时 147s）

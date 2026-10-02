@@ -100,7 +100,9 @@ module rx_frontend #(
             // 只用它的相位输出: 码片端口悬空, frame_done 接 0（保持扫描, 不复位）。
             // RST_EN 时 SFD_WAIT 放长 (2^15 > 帧周期): 共享前端里 SFD 永不触发,
             // 若用原 2^12 超时会在帧内回扫→重锁→改写相位; 改由"下一帧 restart"接管。
-            preamble_sync #(.W(W), .SFD_WAIT(RST_EN ? 15 : 12)) u_sync (
+            // 共享前端: u_sync 的 chip/frame_start 输出悬空（chip 流由 deinterleave 提供,
+            // 帧定位由后端 sfd_detect 完成）→ 裁剪 SFD 窗（SFD_EN=0）; 超时/锁定逻辑保留。
+            preamble_sync #(.W(W), .SFD_WAIT(RST_EN ? 15 : 12), .SFD_EN(1'b0)) u_sync (
                 .clk(clk), .rst_n(rst_n),
                 .i_in(mf_i), .q_in(mf_q), .dv_in(mf_dv),
                 .ph_thresh(ph_thresh), .sfd_thresh(sfd_thresh),
