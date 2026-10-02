@@ -73,7 +73,7 @@ module rx_chip_backend #(
     wire       sym_dv;
     despreader #(.W(12)) u_desp (
         .clk(clk), .rst_n(rst_n),
-        .chip_i(rot_i[18:7]), .chip_q(rot_q[18:7]), .chip_dv(rot_dv),
+        .chip_i(rot_i[W-3:W-14]), .chip_q(rot_q[W-3:W-14]), .chip_dv(rot_dv),   // 取中间 12 位 (峰值≈2^11; W=21 时等价旧 [18:7])
         .frame_start(fs_ch),
         .sym(sym), .sym_dv(sym_dv)
     );
