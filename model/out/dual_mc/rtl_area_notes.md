@@ -920,3 +920,33 @@ edge 报告/图更新（94/86）。
   - **`csq_v3b_block.svg`（graphviz 手绘结构框图：能量定相/连续消费/输出/控制）**；
 - 注：v3b 全模块（~6k cells）netlistsvg **崩溃**（规模超限）——采用"小/中模块真网表 +
   大模块结构框图"的组合呈现。
+
+## 34. TX/RX CRC 现状核实 + 发射波形检查 + CRC 价值判断（2026-10-02）
+
+### 34.1 现状核实（结论: RX 与 TX 的 CRC 均已完成）
+
+- **RX**: `rx_deframer` 逐字节喂 `crc16_fcs`（PSDU 段），帧末判 `crc_o==0 → fcs_ok`；
+  全链回归（MC 流的 FRMA/FRMB fcs 判据）持续覆盖；
+- **TX**: `tx_framer` 已有完整生成链（`crc16_fcs u_crc` + `fcs_latched` + 高/低字节按序
+  发出）；**且 `tb/tx_framer` 是"TX 链 vs 黄金模型的采样级 bit-true 比对"**——
+  FCS 字节的正确性早已被"全波形逐位匹配"隐含覆盖（黄金参考含 Python 侧 CRC）。
+
+### 34.2 本次补齐（把"隐含"变"显式"）
+
+- `tb/tx_framer/test_framer.py` 新增：
+  1. **FCS 显式断言**（末 4 符号切片比对, 独立于整段匹配）；
+  2. **发射波形导出**（`model/out/tx_wave/tx_iq_rtl.npy` + meta）。
+- 新脚本 `model/experiments/run_tx_wave.py` → `model/out/tx_wave/`：
+  时域/包络/频谱/I-Q 轨迹 四联图 + 带宽测量：
+  **-3dB 1.27 MHz / -20dB 5.10 MHz**（基带样点谱, 16MHz 采样; 口径为"谱跨零点宽",
+  非 802.15.4 掩模口径——掩模/EVM/杂散属 **analog 侧**验证）。
+- 测试 PASS（bit-true 全匹配 + FCS 显式断言）。
+
+### 34.3 CRC"做不做"的分层价值判断（登记）
+
+| 层次 | 必要性 | 状态 |
+|---|---|---|
+| 空口 FCS（TX 生成 / RX 校验） | **必做**（防"一定出现"的空口错误; 协议要求） | ✅ 已完成 |
+| 数字域内部自检（自己验自己） | **低价值**（数字正确性靠 bit-true/设计; 运行期自检主防故障） | 不做 |
+| 发射质量确认（EVM/掩模/杂散） | 需要, 但属 **模拟/测试**（环回 ADC/校准模式） | analog 侧范畴 |
+| 分层错误上报（pd 无/SFD 错/CRC 错/PHR 非法…） | **轻量实用**（链路质量管理, observer 范畴） | 待议 |

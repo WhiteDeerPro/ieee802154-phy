@@ -1,0 +1,5 @@
+PSDU=0180a55a00ff42c31199
+n_sym=36
+Li=12
+Lq=12
+fcs_sym_bytes=['0xe', '0xd', '0x0', '0xe']

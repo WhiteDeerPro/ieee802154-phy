@@ -105,6 +105,26 @@ async def tx_chain_bit_true(dut):
 
     Li = find_offset(i_got, i_exp, "I")
     Lq = find_offset(q_got, q_exp, "Q")
+
+    # —— [显式 FCS 断言, 2026-10-02] FCS = 末 2 字节 = 末 4 个符号 ——
+    # 波形 bit-true 已隐含其正确性; 此处显式切片, 供直接审阅/防回归。
+    import hashlib
+    n_sym = len(syms)
+    fcs_syms = syms[-4:]
+    fcs_i_exp = i_exp[(n_sym - 4) * 8:]
+    fcs_q_exp = q_exp[(n_sym - 4) * 8:]
+    assert len(i_got) >= Li + (n_sym - 4) * 8 + 32, "波形长度不足, 无法校验 FCS 段"
+    assert i_got[Li + (n_sym - 4) * 8: Li + (n_sym - 4) * 8 + len(fcs_i_exp)] == fcs_i_exp, "FCS 段 I 波形不匹配"
+    if (n_sym - 4) * 8 + len(fcs_q_exp) <= len(q_got) - Lq:
+        assert q_got[Lq + (n_sym - 4) * 8: Lq + (n_sym - 4) * 8 + len(fcs_q_exp)] == fcs_q_exp, "FCS 段 Q 波形不匹配"
+    import os
+    _out = Path(__file__).resolve().parents[2] / "model" / "out" / "tx_wave"
+    _out.mkdir(parents=True, exist_ok=True)
+    np.save(_out / "tx_iq_rtl.npy", np.array([i_got, q_got]))
+    (_out / "tx_iq_meta.txt").write_text(
+        f"PSDU={PSDU.hex()}\nn_sym={n_sym}\nLi={Li}\nLq={Lq}\n"
+        f"fcs_sym_bytes={[hex(int(s)) for s in fcs_syms]}\n")
+    dut._log.info(f"FCS 显式断言 PASS（末 4 符号）; 波形已导出 {_out}")
     dut._log.info(
         f"tx_chain PASS: {len(PSDU)}B PSDU, {len(syms)} 符号, "
         f"I {n_i} 采样(偏移{Li}) + Q {n_q} 采样(偏移{Lq}) 全匹配"
