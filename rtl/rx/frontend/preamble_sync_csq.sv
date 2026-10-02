@@ -13,6 +13,10 @@
 //
 // 资源对照（预期）: 候选状态/历史存储 16→1, 相干算术 2 路→1 路, 新增 16 路
 //   能量累加与选峰树。编译: 与 preamble_sync.sv **二选一**（同一模块名）。
+//
+// [治理1, 2026-10-02] 粗搜改"512 拍滑窗"（环形缓冲 + 逐拍加减）: eacc 任何时刻都
+// 表示最近 512 拍的能量 ⇒ restart 不再"清窗重来", 而是"立即评估 / 原地重启验证";
+// verify 被打断后 1 拍即重选峰重启（抖动吸收）——修 §28/§29 的"攒满-消费"错配。
 `timescale 1ns/1ps
 module preamble_sync #(
     parameter W = 21,
@@ -22,7 +26,9 @@ module preamble_sync #(
     parameter NORM_SHIFT  = 5,
     parameter E_W         = 48,   // 块能量位宽
     parameter EWIN        = 512,  // 能量窗拍数（16 相各得 EWIN/16 个样本）
-    parameter VWAIT       = 1024  // verify 超时拍数（3 块需 ~768 拍；无 ready 即回粗搜）
+    parameter VWAIT       = 1024, // verify 超时拍数（3 块需 ~768 拍；无 ready 即回粗搜）
+    parameter TEVAL       = 256,  // 重评估冷却拍数（超时回 SCAN 后至少等 TEVAL 再评估）
+    parameter RSTGATE     = 512   // 评估门: 距最近 restart ≥ RSTGATE 拍（保窗内是新信号）
 ) (
     input  wire                    clk,
     input  wire                    rst_n,
@@ -60,12 +66,22 @@ module preamble_sync #(
     wire [3:0] s_p16 = smp_cnt[3:0];
 
     wire signed [W-1:0] v_i = i_in, v_q = q_in;
+    localparam VW = 2*W - 8;                    // 能量样本位宽（截低 9 位）
     wire [2*W:0] v_sq = v_i*v_i + v_q*v_q;      // 单采样能量（无符号）
+    wire [VW-1:0] v_sq_c = v_sq[2*W : 9];       // 截位能量样本（滑窗缓冲用）
 
-    // ---------------- ① 粗搜: 16 相能量窗 ----------------
+    // ---------------- ① 粗搜: 16 相滑窗能量（512 拍环形缓冲）----------------
+    // [治理1] eacc 恒为"最近 512 拍"的 16 相能量（每拍 +新样本 −512 拍前样本）;
+    // restart 不再清窗, 改作"立即评估 / 原地重启验证"信号 —— 抖动可被吸收。
     reg [EACC_W-1:0] eacc [0:15];
+    reg [VW-1:0]     ebuf [0:511];
+    reg [8:0]        ebp;                        // 环形缓冲写指针（= 最老槽）
+    reg [9:0]        warm_cnt;                   // 冷启动计数（≥512 后窗"热"）
+    reg [9:0]        rst_cnt;                    // 距最近一次 restart 的拍数（饱和）
+    wire             warm = (warm_cnt >= 10'd512);
     reg [15:0]       ewcnt;
     reg [3:0]        c_e;                        // 选出的相位（锁定后 = lphase 源）
+    wire [VW-1:0]    v_old = ebuf[ebp];
 
     // 候选能量 = 两格点之和 eacc[c] + eacc[(c+12)%16]（与 model 的 en16 定义一致）:
     //   正确轴 c* 含两个片峰（I 峰 @c*、Q 峰 @c*+12）→ 唯一最大;
@@ -185,6 +201,10 @@ module preamble_sync #(
             wait_cnt    <= {SFD_WAIT{1'b0}};
             drain_cnt   <= {FRAME_DRAIN{1'b0}};
             for (pp = 0; pp < 16; pp = pp + 1) eacc[pp] <= {EACC_W{1'b0}};
+            ebp      <= 9'd0;
+            warm_cnt <= 10'd0;
+            rst_cnt  <= 10'd0;
+            for (pp = 0; pp < 512; pp = pp + 1) ebuf[pp] <= {VW{1'b0}};
             for (pp = 0; pp < 32; pp = pp + 1) begin
                 curI[pp]  <= {W{1'b0}};
                 curQ[pp]  <= {W{1'b0}};
@@ -199,6 +219,15 @@ module preamble_sync #(
             smp_cnt     <= smp_cnt + 16'd1;
             frame_start <= 1'b0;
             chip_dv     <= 1'b0;
+            // [治理1] 滑窗能量：任何状态连续更新（restart 不影响）
+            ebuf[ebp]   <= v_sq_c;
+            ebp         <= ebp + 9'd1;
+            eacc[s_p16] <= eacc[s_p16] + v_sq_c - v_old;
+            if (!warm) warm_cnt <= warm_cnt + 10'd1;
+            // 距最近 restart 拍数（饱和至 1023；须 ≥ RSTGATE=512，勿与饱和值自锁）
+            rst_cnt <= scan_restart ? 10'd0
+                                    : ((rst_cnt >= 10'd1023) ? rst_cnt
+                                                             : rst_cnt + 10'd1);
             wait_cnt    <= (state == ST_SCAN || sfd_found) ? {SFD_WAIT{1'b0}}
                                                             : wait_cnt + 1'b1;
             drain_cnt   <= (state == ST_SCAN || !sfd_found) ? {FRAME_DRAIN{1'b0}}
@@ -212,18 +241,11 @@ module preamble_sync #(
                 detect       <= 1'b1;
             end else case (state)
                 ST_SCAN: begin
-                    // ① 粗搜: 能量累加（每拍 1 相）。窗满拍 = 选峰并清窗（同拍不累加）。
-                    if (scan_restart) begin
-                        // 帧到达: 清窗重来（本拍样本弃掉, 从下一拍起重新积累）
-                        ewcnt <= 16'd0;
-                        for (pp = 0; pp < 16; pp = pp + 1)
-                            eacc[pp] <= {EACC_W{1'b0}};
-                    end else if (ewcnt >= EWIN) begin
-                        // 窗满: 选峰（c_sel 基于含至上一拍的全部样本）, 进入精搜
-                        c_e    <= c_sel;
+                    // ① 粗搜（滑窗版）: 评估门 = 窗热 且 距最近 restart≥RSTGATE（保证窗内
+                    //  是新信号）且 冷却满 TEVAL —— 不清窗, 超时后可直接再评估（重试）
+                    if (warm && (rst_cnt >= RSTGATE[9:0]) && (ewcnt >= TEVAL[15:0])) begin
+                        c_e    <= c_sel;             // 滑窗能量选峰
                         ewcnt  <= 16'd0;
-                        for (pp = 0; pp < 16; pp = pp + 1)
-                            eacc[pp] <= {EACC_W{1'b0}};
                         state  <= ST_VERIFY;
                         vcnt   <= 16'd0;
                         pcnt   <= 6'd0;
@@ -234,18 +256,29 @@ module preamble_sync #(
                         bestR  <= {(R_W+1){1'b0}};
                         pending<= 1'b0;
                         ready  <= 1'b0;
-                    end else begin
-                        eacc[s_p16] <= eacc[s_p16] + v_sq;
-                        ewcnt <= ewcnt + 16'd1;
+                    end else if (ewcnt < TEVAL[15:0]) begin
+                        ewcnt <= ewcnt + 16'd1;      // 冷却计数（饱和至 TEVAL）
                     end
                 end
                 ST_VERIFY: begin
                     vcnt <= (vcnt == 16'hFFFF) ? vcnt : vcnt + 16'd1;
-                    if (scan_restart) begin
-                        state <= ST_SCAN;
-                        ewcnt <= 16'd0;
-                        for (pp = 0; pp < 16; pp = pp + 1)
-                            eacc[pp] <= {EACC_W{1'b0}};
+                    if (scan_restart && warm) begin
+                        // 帧到达: 重选峰; 相位未变 → 仅续时（块积累保留 = 抖动吸收）;
+                        // 相位变了（真换帧）→ 清零重启验证。
+                        if (c_sel == c_e) begin
+                            vcnt <= 16'd0;
+                        end else begin
+                            c_e     <= c_sel;
+                            pcnt    <= 6'd0;
+                            accR    <= {R_W{1'b0}};
+                            accI    <= {R_W{1'b0}};
+                            accE    <= {E_W{1'b0}};
+                            prevE   <= {E_W{1'b0}};
+                            bestR   <= {(R_W+1){1'b0}};
+                            pending <= 1'b0;
+                            ready   <= 1'b0;
+                            vcnt    <= 16'd0;
+                        end
                     end else if (serve) begin
                         // ② 精搜: 单候选相干服务
                         curI[pcnt] <= v_i;
@@ -281,11 +314,9 @@ module preamble_sync #(
                             pcnt <= pcnt + 6'd1;
                         end
                     end else if (vcnt >= VWAIT) begin
-                        // 超时: 无 ready → 回粗搜（清窗）——用 >= 防"serve 拍跳过检查"卡死
+                        // 超时: 无 ready → 回粗搜——用 >= 防"serve 拍跳过检查"卡死
                         state <= ST_SCAN;
                         ewcnt <= 16'd0;
-                        for (pp = 0; pp < 16; pp = pp + 1)
-                            eacc[pp] <= {EACC_W{1'b0}};
                     end
                 end
                 ST_LOCK: begin
@@ -296,8 +327,6 @@ module preamble_sync #(
                         sfd_found  <= 1'b0;
                         fs_pending <= 1'b0;
                         ewcnt      <= 16'd0;
-                        for (pp = 0; pp < 16; pp = pp + 1)
-                            eacc[pp] <= {EACC_W{1'b0}};
                     end else if (emit_chip) begin
                         chip_i      <= d_i;
                         chip_q      <= d_q;
