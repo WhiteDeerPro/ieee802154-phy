@@ -62,7 +62,8 @@ module rx_frontend #(
     output wire               mf_dv
 );
     // ---------------- 匹配滤波（一份）----------------
-    rx_matched_filter u_mf (
+    // MF 输出位宽跟随 W；缩位时高位对齐（LSB_SHIFT = ACC_W - W）——定点重定标
+    rx_matched_filter #(.X_W(12), .Y_W(W), .LSB_SHIFT((12+9)-W)) u_mf (
         .clk(clk), .rst_n(rst_n),
         .i_in(adc_i), .q_in(adc_q), .dv_in(adc_dv),
         .i_out(mf_i), .q_out(mf_q), .dv_out(mf_dv)

@@ -7,7 +7,9 @@
 `timescale 1ns/1ps
 module half_sine_fir #(
     parameter X_W = 12,              // 输入位宽
-    parameter Y_W = 12               // 输出位宽 (<= ACC_W; ACC_W = X_W+9)
+    parameter Y_W = 12,              // 输出位宽 (<= ACC_W; ACC_W = X_W+9)
+    parameter LSB_SHIFT = 0          // 取位起点: y = acc[LSB_SHIFT +: Y_W]
+                                     //   TX/短位宽=0(截低); RX 满精度=0; RX 缩位重定标=ACC_W-Y_W(高位对齐)
 ) (
     input  wire                      clk,
     input  wire                      rst_n,
@@ -39,7 +41,7 @@ module half_sine_fir #(
             acc = (pipe[0] * C0) + (pipe[1] * C1) + (pipe[2] * C2)
                 + (pipe[3] * C3) + (pipe[4] * C3) + (pipe[5] * C2)
                 + (pipe[6] * C1) + (pipe[7] * C0);
-            y      <= acc[Y_W-1:0];
+            y      <= acc[LSB_SHIFT +: Y_W];
             dv_out <= dv_in;
         end
     end

@@ -4,7 +4,8 @@
 `timescale 1ns/1ps
 module rx_matched_filter #(
     parameter X_W = 12,
-    parameter Y_W = 21
+    parameter Y_W = 21,
+    parameter LSB_SHIFT = 0     // 0=取低 Y_W 位（原行为）; ACC_W-Y_W=高位对齐（缩位重定标）
 ) (
     input  wire                      clk,
     input  wire                      rst_n,
@@ -15,10 +16,10 @@ module rx_matched_filter #(
     output wire signed [Y_W-1:0]     q_out,
     output wire                      dv_out
 );
-    half_sine_fir #(.X_W(X_W), .Y_W(Y_W)) u_fir_i (
+    half_sine_fir #(.X_W(X_W), .Y_W(Y_W), .LSB_SHIFT(LSB_SHIFT)) u_fir_i (
         .clk(clk), .rst_n(rst_n), .x(i_in), .dv_in(dv_in), .y(i_out), .dv_out(dv_out)
     );
-    half_sine_fir #(.X_W(X_W), .Y_W(Y_W)) u_fir_q (
+    half_sine_fir #(.X_W(X_W), .Y_W(Y_W), .LSB_SHIFT(LSB_SHIFT)) u_fir_q (
         .clk(clk), .rst_n(rst_n), .x(q_in), .dv_in(dv_in), .y(q_out), .dv_out()
     );
 endmodule
