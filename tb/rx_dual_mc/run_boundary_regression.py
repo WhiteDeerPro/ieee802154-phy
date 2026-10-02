@@ -32,7 +32,7 @@ PASS = True
 
 def ensure_scenes():
     """场景缺失（如清理过 out 产物）时自动重建——regen_scenes 一键恢复。"""
-    need = ['snr20', 'snr6', 'mixdev1', 'edge']
+    need = ['snr20', 'snr6', 'mixdev1', 'edge', 'mp1']
     missing = [d for d in need
                if not (DMC / d / 'mem.bin').exists()
                or not (DMC / d / 'frames.npz').exists()]
@@ -43,6 +43,7 @@ def ensure_scenes():
         RS.gen_dual('snr6', 6)
         RS.gen_mixdev()
         RS.gen_edge()
+        RS.gen_mp1()
 
 
 def run(stream, simv_name, tag, inj=0):
@@ -104,7 +105,8 @@ def main():
     lines += ["", "## 3. 主流量", ""]
     checks = [('snr20', 'simv_ps_a16', 59), ('snr20', 'simv_ps_csq', 59),
               ('snr6', 'simv_ps_a16', 16), ('snr6', 'simv_ps_csq', 16),
-              ('mixdev1', 'simv_ps_a16', None), ('mixdev1', 'simv_ps_csq', None)]
+              ('mixdev1', 'simv_ps_a16', None), ('mixdev1', 'simv_ps_csq', None),
+              ('mp1', 'simv_ps_a16', 58), ('mp1', 'simv_ps_csq', 58)]
     for stream, name, low in checks:
         okA, okB, fs = run(stream, name, 'main')
         if low is None:

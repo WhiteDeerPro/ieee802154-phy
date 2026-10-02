@@ -38,6 +38,17 @@ def gen_mixdev(frames=200, seed=1):
     print(f"mixdev1: {meta['n_smp']} 采样")
 
 
+def gen_mp1(frames=60, seed=21):
+    """温和多径 [1,.5]@0.5chip(=4 采样): 模型侧"扩频硬扛"档（BER=0）——
+    作为 RTL 的"信道鲁棒性"回归场景。"""
+    out = DMC / 'mp1'
+    out.mkdir(parents=True, exist_ok=True)
+    meta = mc_gen.gen_point(20, frames, 20, 8.0, seed, 400, 600, out,
+                            gap_jitter=16, cfo_list=[100e3],
+                            mp=dict(gains=[1.0, 0.5], delays=[0, 4]))
+    print(f"mp1: {meta['n_smp']} 采样")
+
+
 def gen_edge():
     out = DMC / 'edge'
     out.mkdir(parents=True, exist_ok=True)
@@ -52,4 +63,5 @@ if __name__ == '__main__':
     gen_dual('snr6', 6)
     gen_mixdev()
     gen_edge()
-    print("场景重建完成（snr20 / snr6 / mixdev1 / edge）")
+    gen_mp1()
+    print("场景重建完成（snr20 / snr6 / mixdev1 / edge / mp1）")

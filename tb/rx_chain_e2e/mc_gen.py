@@ -61,7 +61,8 @@ def mem_checksum(packed: np.ndarray) -> int:
 
 def gen_point(snr_db, n_frames, psdu_len, scale, seed, gap, tail, out_dir,
               gap_jitter=16, cfo_hz=0.0, iq_gain_db=0.0, iq_phase_deg=0.0,
-              cfo_list=None, frame_specs=None):
+              cfo_list=None, frame_specs=None,
+              mp=None):    # 多径（可选）: dict(gains=[...], delays=[...]) —— delays 为**采样**整数延迟
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     rng = np.random.default_rng(seed)
@@ -160,6 +161,23 @@ def gen_point(snr_db, n_frames, psdu_len, scale, seed, gap, tail, out_dir,
             q_cat[lo:hi] = i_seg * sph + q_seg * cph
             total_ph = float(ph[-1]) + 2 * np.pi * cfo_per_frame[f] / (SPS * phy.CHIP_RATE)
 
+    # 多径 (可选, 模拟信道: 天线 → 多径 → IQ → ADC)
+    #   整数采样延迟 FIR: y[n] = Σ_k g_k·x[n − d_k]（d 以采样为单位; 0.5 chip = 4 采样）
+    if mp is not None:
+        _g = np.asarray(mp["gains"], dtype=float)
+        _d = np.asarray(mp["delays"], dtype=int)
+        _i_out = np.zeros_like(i_cat)
+        _q_out = np.zeros_like(q_cat)
+        for _gk, _dk in zip(_g, _d):
+            _dk = int(_dk)
+            if _dk == 0:
+                _i_out += _gk * i_cat
+                _q_out += _gk * q_cat
+            else:
+                _i_out[_dk:] += _gk * i_cat[:-_dk]
+                _q_out[_dk:] += _gk * q_cat[:-_dk]
+        i_cat, q_cat = _i_out, _q_out
+
     # I/Q 失衡 (模拟域: 天线 → CFQ/IQ 失衡 → ADC; 与 baseband.impairments.add_iq_imbalance 同式)
     if iq_gain_db or iq_phase_deg:
         _g = 10 ** (iq_gain_db / 20)
@@ -198,7 +216,7 @@ def gen_point(snr_db, n_frames, psdu_len, scale, seed, gap, tail, out_dir,
                 gap_jitter=gap_jitter, cfo_hz=cfo_hz,
                 cfo_per_frame=[float(c) for c in cfo_per_frame]
                 if np.any(cfo_arr) else None,
-                iq_gain_db=iq_gain_db, iq_phase_deg=iq_phase_deg,
+                iq_gain_db=iq_gain_db, iq_phase_deg=iq_phase_deg, mp=mp,
                 n_smp=int(n_smp), clip_frac=n_clip / max(1, n_total),
                 es_h_fixed=ES_H_FIXED, tx_syms_per_frame=int(txs.shape[1]),
                 mem_cks=f"{mem_cks:08x}")
