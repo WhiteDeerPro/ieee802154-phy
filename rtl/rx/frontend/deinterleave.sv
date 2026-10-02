@@ -16,6 +16,7 @@ module deinterleave #(
     input  wire signed [W-1:0] i_in,
     input  wire signed [W-1:0] q_in,
     input  wire               dv_in,
+    input  wire               en,              // 帧窗使能: 0 → 屏蔽 chip_dv（下游全停）; smp_cnt 照走（相位不丢）
     input  wire [3:0]         phase,
     output reg  signed [W-1:0] chip_i,
     output reg  signed [W-1:0] chip_q,
@@ -38,7 +39,7 @@ module deinterleave #(
             chip_dv <= 1'b0;
         end else if (dv_in) begin
             smp_cnt <= smp_cnt + 16'd1;
-            chip_dv <= even | odd;
+            chip_dv <= (even | odd) & en;
             if (even) begin
                 chip_i <= i_in;                   // 偶片: I/Q 原值
                 chip_q <= q_in;

@@ -20,11 +20,11 @@
 
 - snr20 simv_ps_a16: FRMA 60/60（判据 ≥59） PASS
 - snr20 simv_ps_csq: FRMA 60/60（判据 ≥59） PASS
-- snr6 simv_ps_a16: FRMA 17/60（判据 ≥16） PASS
-- snr6 simv_ps_csq: FRMA 17/60（判据 ≥16） PASS
+- snr6 simv_ps_a16: FRMA 15/60（判据 ≥15） PASS
+- snr6 simv_ps_csq: FRMA 15/60（判据 ≥15） PASS
 - mixdev1 simv_ps_a16: FA 127 / FB 50（判据 FA≥126, FB≥49） PASS
 - mixdev1 simv_ps_csq: FA 128 / FB 50（判据 FA≥126, FB≥49） PASS
 - mp1 simv_ps_a16: FRMA 60/60（判据 ≥58） PASS
 - mp1 simv_ps_csq: FRMA 60/60（判据 ≥58） PASS
 
-**总结: ALL PASS**（耗时 176s）
+**总结: ALL PASS**（耗时 170s）

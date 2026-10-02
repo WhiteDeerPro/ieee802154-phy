@@ -31,7 +31,8 @@ module rx_frontend #(
     parameter integer SEG_TH = 512,   // 前导段确认长度（数据段零星段 ≤480）
     parameter integer WIN    = 1200,  // latch 窗口宽（确认后打开）
     parameter integer PH_SHIFT = 0,   // 锁定值相位修正（采样; 实测最优 off=10 vs 锁定值 8）
-    parameter integer ALIGN_GATE = 1  // 1: 网格对齐门（latch 延迟到抽取网格 0/4 拍再生效）
+    parameter integer ALIGN_GATE = 1,  // 1: 网格对齐门（latch 延迟到抽取网格 0/4 拍再生效）
+    parameter integer FE_WIN_LEN = 70000 // 帧窗门控长度（pd_rise 开窗; ≥最大帧 69120 + 余量）
 ) (
     input  wire               clk,
     input  wire               rst_n,
@@ -72,6 +73,7 @@ module rx_frontend #(
     // ---------------- 相位来源：外置 或 扫描 ----------------
     wire [3:0] scan_phase;
     wire pd_rst;                 // 前导检测电平（仅 RST_EN=1 的扫描路径使用）
+    wire fe_win;                 // 帧窗使能（低功耗门控 v1; docs/22）: 窗外屏蔽 chip_dv
     generate
         if (SYNC_DIRECT) begin : g_direct
             assign detect     = ext_lock_en;
@@ -79,6 +81,7 @@ module rx_frontend #(
             assign pbuf_i     = {W{1'b0}};
             assign pbuf_q     = {W{1'b0}};
             assign pbuf_done  = 1'b0;
+            assign fe_win     = 1'b1;              // 测试模式（相位外置）恒开
         end else begin : g_scan
             // 帧到达检测（归一化延迟自相关, 对 CFO 免疫）。
             // ⚠ det_pulse 是**电平**（前导段持续 ~1700 采样, 数据段零星段 ≤480）
@@ -97,6 +100,24 @@ module rx_frontend #(
             end
             wire pd_rise = pd_rst & ~pd_d;     // 帧到达沿（不受 RST_EN 门控, pbuf 也用）
             wire scan_rst = RST_EN ? pd_rise : 1'b0;
+            // —— 帧窗门控（低功耗门控 v1, docs/22）: pd_rise 开窗 FE_WIN_LEN 拍 ——
+            //   窗内 chip_dv 放行; 窗外屏蔽（下游 sfd/despreader 自然停）;
+            //   deinterleave 的 smp_cnt 照常走（相位不丢, 下一帧行为等价）。
+            reg [16:0] fe_win_cnt;
+            reg        fe_win_r;
+            always @(posedge clk) begin
+                if (!rst_n) begin
+                    fe_win_r   <= 1'b0;
+                    fe_win_cnt <= 17'd0;
+                end else if (pd_rise) begin
+                    fe_win_r   <= 1'b1;
+                    fe_win_cnt <= FE_WIN_LEN[16:0];
+                end else if (fe_win_r) begin
+                    if (fe_win_cnt == 17'd0) fe_win_r <= 1'b0;
+                    else                     fe_win_cnt <= fe_win_cnt - 1'b1;
+                end
+            end
+            assign fe_win = fe_win_r | pd_rise;   // 当拍组合放行: pd_rise 拍的偶/奇片不丢
             // 只用它的相位输出: 码片端口悬空, frame_done 接 0（保持扫描, 不复位）。
             // RST_EN 时 SFD_WAIT 放长 (2^15 > 帧周期): 共享前端里 SFD 永不触发,
             // 若用原 2^12 超时会在帧内回扫→重锁→改写相位; 改由"下一帧 restart"接管。
@@ -206,6 +227,7 @@ module rx_frontend #(
     deinterleave #(.W(W)) u_deint (
         .clk(clk), .rst_n(rst_n),
         .i_in(mf_i), .q_in(mf_q), .dv_in(mf_dv),
+        .en(fe_win),
         .phase(phase_fix),
         .chip_i(chip_i), .chip_q(chip_q), .chip_dv(chip_dv),
         .s16_out(deint_s16)

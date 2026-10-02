@@ -103,8 +103,11 @@ def main():
 
     # ---- 3) 主流量 ----
     lines += ["", "## 3. 主流量", ""]
+    # snr6 判据 16→15（2026-10-03, 用户裁定）：帧窗门控（低功耗）给 6dB 边界带来
+    # −2/60 代价（17→15）；机制=低 SNR 下 pd 抖动期与窗行为的交互（未完全定位,
+    # 实验 B 证明相位保持（smp_cnt 照走）本身无损）。见 docs/22 §8。
     checks = [('snr20', 'simv_ps_a16', 59), ('snr20', 'simv_ps_csq', 59),
-              ('snr6', 'simv_ps_a16', 16), ('snr6', 'simv_ps_csq', 16),
+              ('snr6', 'simv_ps_a16', 15), ('snr6', 'simv_ps_csq', 15),
               ('mixdev1', 'simv_ps_a16', None), ('mixdev1', 'simv_ps_csq', None),
               ('mp1', 'simv_ps_a16', 58), ('mp1', 'simv_ps_csq', 58)]
     for stream, name, low in checks:
