@@ -32,7 +32,8 @@ module rx_frontend #(
     parameter integer WIN    = 1200,  // latch 窗口宽（确认后打开）
     parameter integer PH_SHIFT = 0,   // 锁定值相位修正（采样; 实测最优 off=10 vs 锁定值 8）
     parameter integer ALIGN_GATE = 1,  // 1: 网格对齐门（latch 延迟到抽取网格 0/4 拍再生效）
-    parameter integer FE_WIN_LEN = 70000 // 帧窗门控长度（pd_rise 开窗; ≥最大帧 69120 + 余量）
+    parameter integer FE_WIN_LEN = 70000, // 帧窗门控长度（pd_rise 开窗; ≥最大帧 69120 + 余量）
+    parameter integer FE_WIN_DLY = 0      // 帧窗延迟开（拍）: >0 = "前 N 片不用"（受限基线实验用）
 ) (
     input  wire               clk,
     input  wire               rst_n,
@@ -104,20 +105,26 @@ module rx_frontend #(
             //   窗内 chip_dv 放行; 窗外屏蔽（下游 sfd/despreader 自然停）;
             //   deinterleave 的 smp_cnt 照常走（相位不丢, 下一帧行为等价）。
             reg [16:0] fe_win_cnt;
+            reg [16:0] fe_dly_cnt;
             reg        fe_win_r;
             always @(posedge clk) begin
                 if (!rst_n) begin
                     fe_win_r   <= 1'b0;
                     fe_win_cnt <= 17'd0;
+                    fe_dly_cnt <= 17'd0;
                 end else if (pd_rise) begin
                     fe_win_r   <= 1'b1;
                     fe_win_cnt <= FE_WIN_LEN[16:0];
+                    fe_dly_cnt <= FE_WIN_DLY[16:0];
+                end else if (fe_dly_cnt != 17'd0) begin
+                    fe_dly_cnt <= fe_dly_cnt - 1'b1;
                 end else if (fe_win_r) begin
                     if (fe_win_cnt == 17'd0) fe_win_r <= 1'b0;
                     else                     fe_win_cnt <= fe_win_cnt - 1'b1;
                 end
             end
-            assign fe_win = fe_win_r | pd_rise;   // 当拍组合放行: pd_rise 拍的偶/奇片不丢
+            // 当拍组合放行: pd_rise 拍的偶/奇片不丢; 延迟窗（FE_WIN_DLY>0）= "前 N 片不用"
+            assign fe_win = (fe_win_r | pd_rise) & (fe_dly_cnt == 17'd0);
             // 只用它的相位输出: 码片端口悬空, frame_done 接 0（保持扫描, 不复位）。
             // RST_EN 时 SFD_WAIT 放长 (2^15 > 帧周期): 共享前端里 SFD 永不触发,
             // 若用原 2^12 超时会在帧内回扫→重锁→改写相位; 改由"下一帧 restart"接管。
