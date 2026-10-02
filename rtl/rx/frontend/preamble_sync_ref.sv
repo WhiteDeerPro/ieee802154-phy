@@ -88,8 +88,11 @@ module preamble_sync #(
     reg [5:0]      mcnt [0:15];       // 各候选块内码片计数 0..31
     reg [15:0]     bcnt [0:15];       // 各候选已完成块数
     // [共享延迟线] 替代 16 份历史副本（notes §13）：
-    //   写侧：每拍写入当前去交错码片（偶链 e_vi/e_vq, 奇链 o_vi/o_vq 各一条线）
-    //   读侧：rd = wr - 16*(32 + mcnt[c] - m)  （块边界自动成立, 无需显式搬移）
+    //   线内容 = **输入采样流** (i_in/q_in)，每拍一写；两链共享同一份历史——
+    //   共轭积的公共旋转自动抵消：偶链读出 Re(v·conj(v')), 奇链读出 Im(·),
+    //   故写侧只存原始采样, 不存任一链的旋转别值（§19-① 语义澄清）。
+    //   读侧：rd = wr - 16*(32 + mcnt[c] - m)（块边界自动成立, 无需显式搬移）；
+    //   调用处 m=mcnt[c] ⇒ 读 wr-512（固定 32 码片延迟 = 上一块同位置, notes §13 结论2）。
     reg signed [W-1:0] line_i [0:1023];
     reg signed [W-1:0] line_q [0:1023];
     reg [9:0]          wr;
@@ -309,9 +312,11 @@ module preamble_sync #(
             drain_cnt   <= (state == ST_SCAN || !sfd_found) ? {FRAME_DRAIN{1'b0}}
                                                             : drain_cnt + 1'b1;
 
-            // [共享延迟线] 每拍写入当前去交错码片（写侧无 per-candidate 存储）
+            // [共享延迟线] 每拍写入当前采样 I/Q（写侧无 per-candidate 存储）
+            //   必须写原始采样 e_vi/e_vq (≡ i_in/q_in)；不要写任一链的旋转别名
+            //   （o_vi 当前恰等于 e_vq 属巧合——绑定旋转定义, 未来改动会失配, §19-①）。
             line_i[wr] <= e_vi;
-            line_q[wr] <= o_vi;
+            line_q[wr] <= e_vq;
             wr         <= wr + 10'd1;
 
             if (ext_lock_en && state == ST_SCAN) begin
