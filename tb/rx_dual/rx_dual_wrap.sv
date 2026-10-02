@@ -12,7 +12,7 @@
 // ---------------------------------------------------------------------------
 `timescale 1ns/1ps
 module rx_dual_wrap #(
-    parameter W  = 21,
+    parameter W  = 21,                // cocotb 单测平台：绝对门限按 W=21 定标（产品链参考配置为 16, 见 dual_mc_tb）
     parameter PW = 24
 ) (
     input  wire               clk,

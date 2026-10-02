@@ -95,7 +95,7 @@ module dual_mc_tb #(
     reg  [11:0]        pbuf_addr = 12'd0;
     reg                pbuf_clr  = 1'b0;
 
-    rx_dual #(.W(21), .PW(24), .SYNC_DIRECT(EXTPH != 0), .RST_EN(RSTEN != 0)) dut (
+    rx_dual #(.W(16), .PW(24), .SYNC_DIRECT(EXTPH != 0), .RST_EN(RSTEN != 0)) dut (
         .clk(clk), .rst_n(rst_n),
         .adc_i(i_in), .adc_q(q_in), .adc_dv(dv_in),
         .ph_thresh(ph_th), .sfd_thresh(sfd_th),
