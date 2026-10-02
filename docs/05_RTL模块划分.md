@@ -20,7 +20,7 @@
 > 全链端到端 `test_e2e`（`tb/rx_chain_e2e/`：ADC 12bit 量化 → MF → sync → despread → deframe）通过。
 > CFO 修复闭环（`tb/cfo_corr/`，2026-09-27/29）：`cfo_est`（8 相位候选联合搜索，不依赖上游同步）
 > + `cordic_atan2` + `cfo_rot`；0~450 kHz 估计误差 < 11 Hz（无噪）/ 0.03~0.05 kHz（有噪），消旋 bit-true。
-> 顶层集成（`rtl/rx/rx_top.sv`，2026-09-29）：ADC → MF → cfo_rot → preamble_sync → despreader → rx_deframer；
+> 顶层集成（`rtl/rx/legacy/rx_top.sv`，2026-09-29）：ADC → MF → cfo_rot → preamble_sync → despreader → rx_deframer；
 > `preamble_detect`（短窗延迟自相关，CFO 免疫）并联接入，当前作观测输出。
 > 下一步: 自主触发收敛（重写 `cfo_est` COLLECT 段，见 `docs/08` I-6）、DC/IQ 校正 RTL、低 SNR 同步判据修复。
 

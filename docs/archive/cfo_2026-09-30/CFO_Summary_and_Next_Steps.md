@@ -88,13 +88,13 @@ CFO is **cheaper to fix** but **tighter** → correct it before SFO.
 
 ### Existing Modules (Production-Ready)
 
-✅ **`rtl/rx/cfo_est.sv`** — Joint estimation (p_hat + phase_inc + phase_off)
+✅ **`rtl/rx/legacy/cfo_est.sv`** — Joint estimation (p_hat + phase_inc + phase_off)
 - 2048-sample collection window (covers full preamble)
 - 8 candidate alignment points (1 symbol period)
 - CORDIC-based phase extraction (24-bit precision)
 - Outputs: 3-bit alignment, 24-bit phase increment, quality flag
 
-✅ **`rtl/rx/cfo_rot.sv`** — Derotation (continuous correction)
+✅ **`rtl/rx/backend/cfo_rot.sv`** — Derotation (continuous correction)
 - Phase accumulator + 256-entry cos/sin LUT
 - 1 complex multiply per sample
 - Loads initial phase `phase_off` for reference alignment
@@ -309,7 +309,7 @@ The implemented solution is **optimal for the constraints**:
 - `docs/CFO_Enhanced_Block_Design.md` — Enhancement proposals
 - `model/experiments/run_cfo_fix.py` — Model validation
 - `model/out/cfo_fix/report.md` — Experimental results
-- `rtl/rx/cfo_est.sv`, `cfo_rot.sv` — Production RTL
+- `rtl/rx/legacy/cfo_est.sv`, `cfo_rot.sv` — Production RTL
 - `rtl/rx/cfo_est_diag.sv` — Enhanced diagnostic module (new)
 - `tb/cfo_corr/` — Cocotb testbench
 

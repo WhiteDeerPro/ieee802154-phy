@@ -1,6 +1,6 @@
 // mc_top_tb.sv —— 蒙特卡洛全链 (rx_top 集成版)
 // ---------------------------------------------------------------------------
-// DUT = rtl/rx/rx_top.sv: ADC(12bit) → MF → cfo_rot → sync → despread → deframer
+// DUT = rtl/rx/legacy/rx_top.sv: ADC(12bit) → MF → cfo_rot → sync → despread → deframer
 // 与 mc_cfo_tb 的差异: **无上帝视角** —— CFO 估计为 rx_top 内部 free-running,
 // 不需要 frames.txt 触发; +FRAMES/+NFRAMES 为接口兼容保留但未使用。
 //

@@ -129,10 +129,10 @@ This directory contains comprehensive documentation for the **Carrier Frequency 
 
 ### RTL Implementation (Production-Ready)
 
-- **`rtl/rx/cfo_est.sv`** — Joint estimation core (2048-sample collection, CORDIC phase extraction)
-- **`rtl/rx/cfo_rot.sv`** — Derotation engine (phase accumulator + LUT + complex multiply)
+- **`rtl/rx/legacy/cfo_est.sv`** — Joint estimation core (2048-sample collection, CORDIC phase extraction)
+- **`rtl/rx/backend/cfo_rot.sv`** — Derotation engine (phase accumulator + LUT + complex multiply)
 - **`rtl/rx/cfo_est_diag.sv`** — Enhanced estimator with diagnostic outputs (NEW)
-- **`rtl/rx/rx_top.sv`** — Full integration with trigger modes and quality gating
+- **`rtl/rx/legacy/rx_top.sv`** — Full integration with trigger modes and quality gating
 
 ### Model Validation
 
@@ -354,10 +354,10 @@ This CFO correction implementation is part of the IEEE 802.15.4 receiver baseban
 - [Summary](./CFO_Summary_and_Next_Steps.md) — Project status + next steps
 
 ### Code
-- [cfo_est.sv](../rtl/rx/cfo_est.sv) — Estimation core
-- [cfo_rot.sv](../rtl/rx/cfo_rot.sv) — Derotation engine
+- [cfo_est.sv](../rtl/rx/legacy/cfo_est.sv) — Estimation core
+- [cfo_rot.sv](../rtl/rx/backend/cfo_rot.sv) — Derotation engine
 - [cfo_est_diag.sv](../rtl/rx/cfo_est_diag.sv) — Diagnostic version
-- [rx_top.sv](../rtl/rx/rx_top.sv) — Full integration
+- [rx_top.sv](../rtl/rx/legacy/rx_top.sv) — Full integration
 
 ### Tools
 - [Diagnostic Script](../quick_cfo_diagnostic.py) — Automated testing

@@ -5,9 +5,9 @@
 ### ✅ What's Already Done
 
 1. **Core RTL modules exist and are integrated**:
-   - `rtl/rx/cfo_est.sv` — Joint estimation (production-ready)
-   - `rtl/rx/cfo_rot.sv` — Derotation (production-ready)
-   - `rtl/rx/rx_top.sv` — Full integration with adaptive trigger modes
+   - `rtl/rx/legacy/cfo_est.sv` — Joint estimation (production-ready)
+   - `rtl/rx/backend/cfo_rot.sv` — Derotation (production-ready)
+   - `rtl/rx/legacy/rx_top.sv` — Full integration with adaptive trigger modes
 
 2. **Integration features in rx_top.sv**:
    - Two trigger modes: external (test) vs. internal (autonomous detect)

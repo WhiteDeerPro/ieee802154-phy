@@ -286,8 +286,8 @@ and just use **wider sync window** + **relaxed threshold**?
 
 ### Implemented Modules
 
-✅ `rtl/rx/cfo_est.sv`: Joint estimation (p_hat + phase_inc + phase_off)
-✅ `rtl/rx/cfo_rot.sv`: Derotation (phase accumulator + LUT + complex multiply)
+✅ `rtl/rx/legacy/cfo_est.sv`: Joint estimation (p_hat + phase_inc + phase_off)
+✅ `rtl/rx/backend/cfo_rot.sv`: Derotation (phase accumulator + LUT + complex multiply)
 ✅ `tb/cfo_corr/`: Cocotb testbench with model comparison
 ✅ Model validation: `model/experiments/run_cfo_fix.py` matches RTL bit-true
 

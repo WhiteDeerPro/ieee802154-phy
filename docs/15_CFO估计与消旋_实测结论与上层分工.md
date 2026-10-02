@@ -106,11 +106,11 @@ CFO真值   估计均值    偏差     std     不修BER    修后BER
 
 ### 4.1 三个模块
 
-- `rtl/rx/cfo_est.sv` —— 8 个相位候选并行做差分相关，用 |acc|² 当相位一致性判据选最佳；
+- `rtl/rx/legacy/cfo_est.sv` —— 8 个相位候选并行做差分相关，用 |acc|² 当相位一致性判据选最佳；
   对齐点与频偏一次搜完，**不依赖任何上游同步**；
-- `rtl/rx/cordic_atan2.sv` —— 16 级向量模式 CORDIC 求 arg(acc)，只用移位和加减、无乘法器；
+- `rtl/rx/legacy/cordic_atan2.sv` —— 16 级向量模式 CORDIC 求 arg(acc)，只用移位和加减、无乘法器；
   内置象限预处理（否则 ±99.9° 收敛域装不下 ±180° 的差分相位）；
-- `rtl/rx/cfo_rot.sv` —— 24 位相位累加器 + 256 点 cos/sin LUT + 一次复乘/采样；
+- `rtl/rx/backend/cfo_rot.sv` —— 24 位相位累加器 + 256 点 cos/sin LUT + 一次复乘/采样；
   接口 `load` / `phase_inc[23:0]` / `phase_off[23:0]`。
 
 **位宽**：输入 21 bit（与 `rx_matched_filter` 同宽）；z 右移 16 保 21 bit；d 右移 6；
@@ -146,7 +146,7 @@ acc 48 bit；CORDIC 输入取 `acc>>12`。
 
 ### 5.1 结论链（三次探索，详见 `docs/08` I-6）
 
-1. **独立检测器**（`rtl/rx/preamble_detect.sv`，短窗归一化延迟自相关）：
+1. **独立检测器**（`rtl/rx/frontend/preamble_detect.sv`，短窗归一化延迟自相关）：
    对 CFO 完全免疫、三 CFO 点 20/20，但首触发偏移 460±10 稳定却非零，
    接 `cfo_est` 需要对齐参数；**四次调参尝试全部失败** ——
    对齐不是单一偏移量，而是（cref 索引 + 服务窗相位 + 预热 + t==3 补丁）的联合约定。

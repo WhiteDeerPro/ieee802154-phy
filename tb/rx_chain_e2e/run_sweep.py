@@ -7,9 +7,9 @@ from runutil import run
 run('rx_chain_e2e', 'test_cfo_sweep', [
     'tb/rx_chain_e2e/e2e_top.sv',
     'rtl/common/half_sine_fir.sv',
-    'rtl/rx/rx_matched_filter.sv',
-    'rtl/rx/preamble_sync.sv',
-    'rtl/rx/despreader.sv',
-    'rtl/rx/rx_deframer.sv',
+    'rtl/rx/frontend/rx_matched_filter.sv',
+    'rtl/rx/frontend/preamble_sync.sv',
+    'rtl/rx/backend/despreader.sv',
+    'rtl/rx/backend/rx_deframer.sv',
     'rtl/common/pn9_whiten.sv', 'rtl/common/crc16_fcs.sv',
 ])

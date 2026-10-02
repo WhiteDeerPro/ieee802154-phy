@@ -275,7 +275,7 @@ def tx_symbols(psdu: bytes) -> np.ndarray:
 def rx_deframe_symbols(symbols) -> tuple[bytes, bool, int]:
     """RX 解扩符号流 (自 PHR 符号起, 低半字节先) → (psdu, fcs_ok, phr_len)
 
-    与 rtl/rx/rx_deframer.sv 功能镜像: 去白化 (PN9 自逆) → PHR 长度 →
+    与 rtl/rx/backend/rx_deframer.sv 功能镜像: 去白化 (PN9 自逆) → PHR 长度 →
     PSDU 字节流 + FCS 校验 (crc16_fcs(psdu) == FCS 低字节先)。
     长度越界或字节不足时 fcs_ok=False。
     """

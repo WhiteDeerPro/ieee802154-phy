@@ -38,7 +38,7 @@ INC_SMP = int(round(CFO_HZ * PHASE_FS / FS))     # 采样级（=104858）
 INC_CHIP = INC_SMP * SPS                         # **码片级**（共享定时版的新语义）
 GEN_DIR = Path("/tmp/rx_dual_gen")
 
-# 16 个 802.15.4 扩频码 (与 rtl/rx/despreader.sv 的 pn() 同序, m=0 → bit31)
+# 16 个 802.15.4 扩频码 (与 rtl/rx/backend/despreader.sv 的 pn() 同序, m=0 → bit31)
 _PN = [0b11011001110000110101001000101110,
        0b11101101100111000011010100100010,
        0b00101110110110011100001101010010,

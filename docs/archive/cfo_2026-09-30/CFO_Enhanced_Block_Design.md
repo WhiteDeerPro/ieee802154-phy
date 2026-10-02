@@ -501,5 +501,5 @@ a **fundamentally different use case** (long packets, coherent despreading, or m
 ### Internal Project Files
 - `docs/11_文献调研_CFO与同步工程实践.md`: Literature survey (Chinese)
 - `model/experiments/run_cfo_fix.py`: Model implementation and validation
-- `rtl/rx/cfo_est.sv`: Current RTL implementation
+- `rtl/rx/legacy/cfo_est.sv`: Current RTL implementation
 - `tb/cfo_corr/`: Cocotb testbench with bit-true model comparison

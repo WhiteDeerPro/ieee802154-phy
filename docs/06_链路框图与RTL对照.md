@@ -104,7 +104,7 @@ PSDU 字节流 (len + data_in + start)
 1. ~~`cfo_corr.sv`~~ **已实现并验收**（2026-09-27/29）：`cfo_est` + `cordic_atan2` + `cfo_rot`；
    同步判据改共轭积 + 偶/奇 lag2 自相关轴判别（`docs/07` §4）后，**0–450 kHz 全频偏范围
    高 SNR 检出率 95–100%**（100 帧统计 99%、BER 1%）；bit-true 与全模块回归 PASS。
-2. ~~顶层集成~~ **已实现**（2026-09-29）：`rtl/rx/rx_top.sv` —— ADC(12bit) → MF → cfo_rot
+2. ~~顶层集成~~ **已实现**（2026-09-29）：`rtl/rx/legacy/rx_top.sv` —— ADC(12bit) → MF → cfo_rot
    → preamble_sync → despreader → rx_deframer 的可综合顶层；验证链 `tb/rx_chain_e2e/mc_top_tb.sv`
    （`run_mc.py --top-chain`）。与手工例化验证链性能一致（±2%），无集成损失。
    CFO 估计触发源仍需外部提供（`est_start`/`rot_load` 端口），真实触发机制见 `docs/08` I-6。

@@ -88,7 +88,7 @@
   SG13G2 项目暂停在模型加载阶段；sky130 路线不受影响
 - **模拟域可继续**：混频器/PA/LNA 的管级仿真（配合 ZigBee 上下变频，见 doc 11 与 CC2420 架构）、
   ADC（可克隆 `wulffern/sun_sar9b_sky130nm`）
-- **数字侧衔接**：模拟侧 LO 频率误差 ↔ 模型 **CFO**（`rtl/rx/cfo_est.sv` 的对象）；
+- **数字侧衔接**：模拟侧 LO 频率误差 ↔ 模型 **CFO**（`rtl/rx/legacy/cfo_est.sv` 的对象）；
   ÷2 正交失配 ↔ **IQ imbalance**（`model/algo/dc_block.py` 抑制的对象）
 
 ## 7. 外部参考

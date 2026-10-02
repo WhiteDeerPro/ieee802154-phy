@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """run_pd_matrix.py —— 前导检测参数矩阵（γ × 确认拍数 × 判据源）
 
-RTL 支持（rtl/rx/preamble_detect.sv）:
+RTL 支持（rtl/rx/frontend/preamble_detect.sv）:
   THR_SRC   0=窗能量 pwr(历史) / 1=噪声底 nse（min-tracking 快降慢升）
   NOISE_LEAK 噪声底慢升速率 1/2^NOISE_LEAK
   CONF_CNT  连续命中确认拍数（2=历史行为）

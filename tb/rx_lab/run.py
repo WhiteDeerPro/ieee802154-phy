@@ -30,8 +30,8 @@ if __name__ == "__main__":
         "tb/rx_lab/rx_lab_top.sv",
         "tb/rx_chain_e2e/e2e_top.sv",
         "rtl/common/half_sine_fir.sv",
-        "rtl/rx/rx_matched_filter.sv",
-        "rtl/rx/preamble_sync.sv",
-        "rtl/rx/despreader.sv",
-        "rtl/rx/rx_deframer.sv",
+        "rtl/rx/frontend/rx_matched_filter.sv",
+        "rtl/rx/frontend/preamble_sync.sv",
+        "rtl/rx/backend/despreader.sv",
+        "rtl/rx/backend/rx_deframer.sv",
     ] + COMMON, build_args=build_args))

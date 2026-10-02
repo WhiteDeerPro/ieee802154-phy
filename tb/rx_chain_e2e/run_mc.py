@@ -41,10 +41,10 @@ SOURCES = [
     "rtl/common/half_sine_fir.sv",
     "rtl/common/pn9_whiten.sv",
     "rtl/common/crc16_fcs.sv",
-    "rtl/rx/rx_matched_filter.sv",
-    "rtl/rx/preamble_sync.sv",
-    "rtl/rx/despreader.sv",
-    "rtl/rx/rx_deframer.sv",
+    "rtl/rx/frontend/rx_matched_filter.sv",
+    "rtl/rx/frontend/preamble_sync.sv",
+    "rtl/rx/backend/despreader.sv",
+    "rtl/rx/backend/rx_deframer.sv",
 ]
 # CFO 链: 主链插入 cfo_rot (消旋), cfo_est 挂 MF 输出 (前导联合估计)
 CFO_SOURCES = [
@@ -52,19 +52,19 @@ CFO_SOURCES = [
     "rtl/common/half_sine_fir.sv",
     "rtl/common/pn9_whiten.sv",
     "rtl/common/crc16_fcs.sv",
-    "rtl/rx/rx_matched_filter.sv",
-    "rtl/rx/cfo_est.sv",
-    "rtl/rx/cfo_rot.sv",
-    "rtl/rx/cordic_atan2.sv",
-    "rtl/rx/preamble_sync.sv",
-    "rtl/rx/despreader.sv",
-    "rtl/rx/rx_deframer.sv",
+    "rtl/rx/frontend/rx_matched_filter.sv",
+    "rtl/rx/legacy/cfo_est.sv",
+    "rtl/rx/backend/cfo_rot.sv",
+    "rtl/rx/legacy/cordic_atan2.sv",
+    "rtl/rx/frontend/preamble_sync.sv",
+    "rtl/rx/backend/despreader.sv",
+    "rtl/rx/backend/rx_deframer.sv",
 ]
 # 顶层集成链: DUT = rx_top (ADC→MF→rot→sync→despread→deframer, CFO free-running)
 TOP_SOURCES = [
     "tb/rx_chain_e2e/mc_top_tb.sv",
-    "rtl/rx/rx_top.sv",
-    "rtl/rx/preamble_detect.sv",
+    "rtl/rx/legacy/rx_top.sv",
+    "rtl/rx/frontend/preamble_detect.sv",
 ] + CFO_SOURCES[1:]
 POP4 = np.array([bin(i).count("1") for i in range(16)], dtype=np.int32)
 

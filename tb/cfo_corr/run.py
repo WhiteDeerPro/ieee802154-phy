@@ -15,7 +15,7 @@ if __name__ == "__main__":
         args.append("+define+DUMP_VCD")
     report(run("cfo_corr_top", "test_cfo_corr", [
         "tb/cfo_corr/cfo_corr_top.sv",
-        "rtl/rx/cordic_atan2.sv",
-        "rtl/rx/cfo_est.sv",
-        "rtl/rx/cfo_rot.sv",
+        "rtl/rx/legacy/cordic_atan2.sv",
+        "rtl/rx/legacy/cfo_est.sv",
+        "rtl/rx/backend/cfo_rot.sv",
     ], build_args=args))
