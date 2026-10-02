@@ -226,3 +226,7 @@ RTL 消旋闭环（`cfo_est` + `cfo_rot`：0~450 kHz 误差 < 11 Hz 无噪 / 消
 - [ucb-bar/baseband-modem](https://github.com/ucb-bar/baseband-modem) — SoC 外设式基带调制解调器（文档体系范本）
 - [bastibl/gr-ieee802-15-4](https://github.com/bastibl/gr-ieee802-15-4) — O-QPSK 软件收发（非相干相关接收参照）
 - [nexuslrf/gr-oqpsk_dsss](https://github.com/nexuslrf/gr-oqpsk_dsss) — O-QPSK + DSSS 教学实现（PN 序列表来源）
+
+## License
+
+MIT（见 [LICENSE](LICENSE)）。
