@@ -42,7 +42,7 @@ SOURCES = [
     "rtl/common/crc16_fcs.sv",
     "rtl/rx/frontend/rx_matched_filter.sv",
     "rtl/rx/backend/cfo_rot.sv",
-    "rtl/rx/frontend/preamble_sync.sv",
+    "rtl/rx/frontend/preamble_sync_csq.sv",   # 现役（I-18 转正, v1.2）; A16 作对照变体
     "rtl/rx/frontend/preamble_detect.sv",
     "rtl/rx/frontend/preamble_buf.sv",
     "rtl/rx/frontend/deinterleave.sv",
@@ -87,6 +87,9 @@ def build(force=False, ext=False) -> Path:
            "+incdir+" + str(ROOT / "rtl" / "rx")]
     if ext:
         cmd += ["-pvalue+dual_mc_tb.EXTPH=1"]
+    else:
+        # 参考配置（扫描模式, 同 simv_ps_*）: I-18 转正日统一（此前主 bin 为 RSTEN=0）
+        cmd += ["-pvalue+dual_mc_tb.RSTEN=1"]
     cmd += [str(ROOT / s) for s in SOURCES]
     t0 = time.time()
     r = subprocess.run(cmd, cwd=csrc, env=VCS_ENV, capture_output=True, text=True)

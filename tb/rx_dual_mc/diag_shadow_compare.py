@@ -21,7 +21,7 @@ import run_dual_mc as R      # noqa: E402
 
 DMC = ROOT / 'model/out/dual_mc'
 OUT = DMC / 'shadow_compare'
-STREAMS = ['snr20', 'snr6', 'mixdev1', 'edge']
+STREAMS = ['snr20', 'snr6', 'mixdev1', 'edge', 'mp1']
 inc_a = R.inc_from_cfo(100e3) & 0xFFFFFF
 inc_b = R.inc_from_cfo(-100e3) & 0xFFFFFF
 

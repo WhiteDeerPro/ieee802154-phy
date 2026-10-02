@@ -10,7 +10,8 @@ RST_OPT = '-pvalue+dual_mc_tb.RSTEN=1'   # 边界场景: RST_EN=1（与既有 si
 
 
 def build(out, sync_rel):
-    srcs = [str(ROOT / s) if s != 'rtl/rx/frontend/preamble_sync.sv'
+    # 注意: SOURCES 现认为 preamble_sync_csq.sv（I-18 转正）——替换锚随之为 csq
+    srcs = [str(ROOT / s) if s != 'rtl/rx/frontend/preamble_sync_csq.sv'
             else str(ROOT / sync_rel) for s in R.SOURCES]
     cmd = [f"{R.VCS_ENV['VCS_HOME']}/bin/vcs", "-full64", "-sverilog",
            "-timescale=1ns/1ps", "-o", str(R.SIM_DIR / out),

@@ -18,8 +18,8 @@
 
 | 文件 | 状态 | 说明 |
 |---|---|---|
-| `preamble_sync.sv` | **现役**（A16 基线） | `rx_frontend` 默认例化；主回归 SOURCES（`simv_ps_a16`） |
-| `preamble_sync_csq.sv` | **候选（推荐）** | Csq v3b：能量定相 + 连续滑窗相干；裁剪后 6,456 cells（−23% vs A16）；边界回归打平 |
+| `preamble_sync_csq.sv` | **现役（v1.2 起, I-18 转正）** | Csq v3b：能量定相 + 连续滑窗相干；6,456 cells（−23% vs A16）；回归 + 影子对比打平；**默认 SOURCES** |
+| `preamble_sync.sv` | **对照（A16 历史基线）** | 保留作对照变体（`simv_ps_a16` / 影子对比）；默认编译已切 Csq |
 | `preamble_sync_b8.sv` | 次候选（已被超越） | 16→8 相位变体；面积/性能均不优于 Csq，保留对照 |
 | `preamble_sync_ref.sv` | 候选（未评估） | A16 的共享延迟线优化版（notes §13 方案） |
 
