@@ -41,3 +41,6 @@ novas.rc
 # ---- analog: ngspice 数据导出（可由 .cir 再生成; 图 *.png 仍入库） ----
 analog/**/*.csv
 analog/*.csv
+
+# 边界回归中间产物（每次重跑生成）
+model/out/dual_mc/boundary_reg/ev_*.txt
