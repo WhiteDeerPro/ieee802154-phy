@@ -404,3 +404,30 @@ DPI 通道扩一路"SNR 估计 → 配置选择"。
 连续扫描期二者数学等价（§13 结论 2）；差异窗口 ≈ 重扫后首块（32 码片）→ 阈值边缘帧上
 "连续 2 块 ready"时序可错开 ⇒ f11 类差异。**属实现原理差异，非 bug**
 （docs/18 §4.2 已固化"±1 帧实现差异不视为回归"的裁定）。
+
+## 21. yosys 复跑（2026-10-02，当前设计 + ref）——口径澄清与数字确认
+
+**方法**：yosys 0.9；/tmp 副本上 `rot_lut.svh`→case 函数转换（同 §4 失真口径）；
+`read_verilog -sv` → `hierarchy -top rx_dual` → `proc; opt_clean; stat`（无工艺映射/无 STA）。
+
+**全设计（rx_dual, W=16, 默认 RST_EN=0）**：**36,919 cells** / 9,242 dff / 17,976 mux /
+399 mul / **mem bits 170,336** / wire bits 679,106。（标称 RSTEN=1 变体: 36,925，+6。）
+
+**分模块（cells 降序）**：preamble_sync 30,039(81%) → sfd_detect 1,466 → despreader(W12) 751
+→ preamble_detect 627 → cfo_rot 540\* → rx_deframer 119 → pn9_whiten 108 → rx_frontend 59
+→ preamble_buf 56(131,072 bits) → crc16_fcs 40 → half_sine_fir 37 → deinterleave 24
+→ rx_chip_backend 4 → rx_dual 4 → rx_matched_filter 2。（\* LUT→case 失真，真实为 ROM。）
+
+**口径三条（重要）**：
+1. **proc 口径 cell 计数与位宽无关**——同模块 W16/W21 跑出完全相同的 30,039；
+   位宽收益只在 wire bits / membits / 工艺映射后体现。W21→W16 存储实测: 222,816→170,336（−23.5%）；
+2. membits 恰为两项之和：pbuf 131,072 + preamble_sync 39,264 = 170,336
+   （其余数组均被 "Replacing memory with registers" 成 dff，故不计入）；
+3. 存储未推 RAM（保守口径，同 §1）：pbuf 占 membits 的 77%，真 ASIC 推 SRAM 后大幅下降。
+
+**ref（候选，修复后）@W16**：26,567 cells / 8,283 dff / 13,327 mux / **28 mul** / membits 39,264
+——与 §14 记录逐项一致（修复①为语义等价、结构无变化）。对比原版：cells −11.6%、mul −90%、
+**membits 相同**（2048 words 恰同：原版 16×32×4 vs ref 1024×2）——ref 收益纯在逻辑侧（mux/mul）。
+
+**与历史对照**：§3/§4/§14 的数字与本次逐项吻合（30,039 等）⇒ 历史即本口径；
+历史 50,784/222,816 为 **W=21 单跑口径**（本次单跑复现 50,784，W16 单跑 39,264）。
