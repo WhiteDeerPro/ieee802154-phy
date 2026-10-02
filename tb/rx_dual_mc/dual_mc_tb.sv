@@ -228,6 +228,17 @@ module dual_mc_tb #(
         end
     end
 
+    // —— 强制 restart 注入（测试）: +INJRST=<k> 在采样 k 注入一拍 scan_restart ——
+    // 用于构造"锁定被 restart 打掉"的边界场景（force/release 同步器输入, 不影响 RTL）。
+    longint unsigned inj_k = 0;
+    initial void'($value$plusargs("INJRST=%d", inj_k));
+    always @(posedge clk) begin
+        if (inj_k != 0 && k == inj_k)
+            force dut.u_fe.g_scan.u_sync.scan_restart = 1'b1;
+        else if (inj_k != 0 && k == inj_k + 1)
+            release dut.u_fe.g_scan.u_sync.scan_restart;
+    end
+
     // —— 眼图 dump: +EYEDUMP=<path> +EYES=<start> +EYEE=<end>（采样级 MF 输出）——
     // 采样级不加消旋（RTL 的消旋在码片级），Python 侧用与各通道同参数的
     // 理想旋转做“矫正后”对照 —— 与 chip 级消旋数学等价（复乘与抽取可交换）。
