@@ -5,7 +5,8 @@
 
 ## 目录结构
 
-- `common/`：`half_sine_fir`（匹配滤波核）/ `pn9_whiten` / `crc16_fcs` / `chip_lut`
+- `common/`：`half_sine_fir`（匹配滤波核）/ `pn9_whiten` / `crc16_fcs` / `chip_lut` /
+  `awgn_gen`（CLT 数字 AWGN 注入源，测试/标定基础设施；`docs/20` §4）
 - `rx/frontend/`：`rx_frontend`（共享前端：MF → 扫描同步+相位 latch → `preamble_detect`
   → `preamble_buf` → `deinterleave`）+ 同步器候选族（见下）
 - `rx/backend/`：`rx_chip_backend`（`cfo_rot` → `sfd_detect` → `despreader` → `rx_deframer`）× 2
