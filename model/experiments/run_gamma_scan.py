@@ -8,6 +8,9 @@
 成功帧 / 假帧（fcs=0 的 FRMA）→ 折衷曲线图。
 
 产物: model/out/dual_mc/snr6/（流与图 gamma_tradeoff.png）
+⚠️ 注意: 本脚本**覆盖** snr20/snr6 的激励流（零 CFO 版）——这两个目录是边界
+   回归的主数据（单设备 +100 kHz）;**跑完本脚本后、跑回归前须先执行**
+   `python tb/rx_dual_mc/regen_scenes.py` 恢复。
 用法: python model/experiments/run_gamma_scan.py   （约 2 分钟, 含 VCS 编译与仿真）
 """
 import sys, subprocess
