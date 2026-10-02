@@ -31,16 +31,15 @@ novas.log
 tb/**/*.npz
 tb/**/*.npy
 
-# ---- codewhale 运行状态（易变；reports/ 与 workflow-runs.jsonl 保留） ----
-.codewhale/state/
+# ---- codewhale 运行状态（工具内部物；发布排除, 本地保留） ----
+.codewhale/
 
 # ---- Verdi 会话配置（工具持续改写；如需版本化用 git add -f） ----
 novas.conf
 novas.rc
 
-# ---- analog: ngspice 数据导出（可由 .cir 再生成; 图 *.png 仍入库） ----
-analog/**/*.csv
-analog/*.csv
+# ---- analog 域（本地保留, 不随本仓库发布; 原 ngspice csv 规则被整体覆盖） ----
+analog/
 
 # 边界回归中间产物（每次重跑生成）
 model/out/dual_mc/boundary_reg/ev_*.txt
