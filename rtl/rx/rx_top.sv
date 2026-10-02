@@ -1,3 +1,7 @@
+// [状态] 历史/参考实现（2026-10-02 标注）
+//   用途：单通道旧顶层（ADC→MF→cfo_rot→preamble_sync→despreader→deframer，2026-09-29 集成）
+//   现行主链路为 rx_dual 链（rx_dual/rx_frontend/rx_chip_backend/…），本文件不在其上；
+//   仍被 tb/cfo_corr 等历史测试引用，勿删；重构对照请以 rtl/rx/ 现行模块为准。
 // rx_top.sv —— RX 数字基带顶层 (Phase 3 集成)
 // ---------------------------------------------------------------------------
 // 链路: ADC(12bit) → MF → cfo_rot → preamble_sync → despreader → rx_deframer → PSDU

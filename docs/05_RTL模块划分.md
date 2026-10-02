@@ -133,3 +133,39 @@ sfd_thresh=3e13（SFD 峰 7.2e13，前导区最大 1.3e13——注意前导块�
 - AXI-Stream/APB 封装（规格书 §6 的接口层）——Phase 2 包壳，先用 valid/ready 跑通链路。
 - DC/IQ 校正 RTL、低 SNR 同步判据修复、自主触发收敛——见 `docs/08`（I-2/I-3/I-6）。
 - 异步复位树、时钟门控——Phase 3 低功耗课题。
+
+---
+
+## 现状对照（v1.1 增补，2026-10-02）
+
+> 本文档主体为 **v1.0（2026-09-25）**，描述的是**单通道 `rx_top` 链**。
+> 此后架构演进为 **`rx_dual` 双通道链**（共享前端 + 每通道执行段），本节的"对照表"
+> 用于消除文档与代码的代差；文件级状态标注已写在各模块头部。
+
+**现行主链路（`rx_dual` 链，16 文件，tb/rx_dual_mc 与 tb/rx_dual 的 SOURCES）**：
+
+```
+ADC ─► rx_frontend（共享一份）
+        ├─ rx_matched_filter（half_sine_fir ×2, Y_W=W, LSB_SHIFT 定点重定标）
+        ├─ 相位恢复: 扫描（preamble_sync + preamble_detect + g_scan latch 门控）或 ext 直锁
+        │   + 段确认/对齐门（ALIGN_GATE：latch 延迟到抽取网格 0/4，消扫描缺口 36→49/50）
+        ├─ deinterleave（自由计数器 + phase_fix, 每 16 采样 2 抽取点）
+        └─ preamble_buf（I-13: 前导快照 + 上层读口）
+     ─┬─ rx_chip_backend ×2（每通道一份）
+        ├─ cfo_rot（码片级消旋, 24bit pacc; 每有效片累加 phase_inc）
+        ├─ sfd_detect（64 片相干能量定界）
+        ├─ despreader（32 片解扩）
+        └─ rx_deframer（PN9 去白化 + CRC16 FCS）
+```
+
+**文件状态标注（2026-10-02）**：
+
+| 类别 | 文件 | 说明 |
+|---|---|---|
+| 现行主链路 | rx_dual / rx_frontend / rx_chip_backend / deinterleave / cfo_rot / sfd_detect / despreader / rx_deframer / rx_matched_filter / preamble_sync / preamble_detect / preamble_buf（+ common/ 四原语） | 与 tb SOURCES 一致；定点参考配置 W=16（notes §8/§11） |
+| **历史/参考（勿删）** | **rx_top / rx_backend / preamble_lock / cfo_est / cordic_atan2** | 单通道旧链；被 `tb/cfo_corr` 等历史测试引用；文件头已加 `[状态]` 标注 |
+| 边界说明 | `rx_top` 仍可作为"单通道最小集成"参考；`cfo_est` 的算法论证见 docs/11 | — |
+
+**已知与 v1.0 的差异**：① 单通道 → 双通道（共享前端）；② 扫描器由 `preamble_sync` 直出改为
+"latch 门控 + 对齐门"；③ 新增 preamble_buf（I-13）/轮换替换（SWAPTAB, I-10 雏形）；
+④ 位宽口径：MF 满精度 21bit → 参考配置 16bit（实测无损）；⑤ CFO 估计移出主链（上层/慢环）。
