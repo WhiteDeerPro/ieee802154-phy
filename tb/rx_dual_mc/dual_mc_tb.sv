@@ -195,7 +195,7 @@ module dual_mc_tb #(
             $fwrite(fd_out, "SFW %0d %0d\n", k, dut.u_be_a.u_sfd.sfd_E);
     end
 
-    // —— 前导缓冲 dump: +PBUF=<path>（I-13; done 上升沿后立即扫 3072 地址）——
+    // —— 前导缓冲 dump: +PBUF=<path>（I-13; done 上升沿后立即扫 PRE+POST=1024 地址）——
     // 缓冲在 done 后冻结写入, 故读出内容在扫描期间恒有效。
     string pbuf_path = "";
     int    fd_pbuf = 0;
@@ -212,13 +212,24 @@ module dual_mc_tb #(
                 pb_run <= 1'b1;
                 pb_cnt <= 13'd0;
                 $display("[dual_mc_tb] PBUF capture done @k=%0d, dumping...", k);
+                $display("[pbuf-dbg] bmax0=%0d bmax1=%0d phase=%0d fill=%0d blk=%0d",
+                         dut.u_fe.g_scan.u_pbuf.bmax0, dut.u_fe.g_scan.u_pbuf.bmax1,
+                         dut.u_fe.g_scan.u_pbuf.phase, dut.u_fe.g_scan.u_pbuf.fill,
+                         dut.u_fe.g_scan.u_pbuf.blk_no);
+                $display("[pbuf-dbg] total=%0d wr=%0d trig=%0d",
+                         dut.u_fe.g_scan.u_pbuf.total_in, dut.u_fe.g_scan.u_pbuf.wr_stream,
+                         dut.u_fe.g_scan.u_pbuf.trig_stream);
+                $display("[pbuf-dbg] exp_new=%p", dut.u_fe.g_scan.u_pbuf.exp_new);
+                $display("[pbuf-dbg] exp_old=%p", dut.u_fe.g_scan.u_pbuf.exp_old);
             end else if (pb_run) begin
                 pbuf_addr <= pb_cnt[11:0];
                 if (pb_cnt > 0)
-                    $fwrite(fd_pbuf, "%0d %0d %0d\n", pb_cnt - 1, pbuf_i, pbuf_q);
-                if (pb_cnt == 13'd3072) begin
+                    $fwrite(fd_pbuf, "%0d %0d %0d %0d %0d\n", pb_cnt - 1, pbuf_i, pbuf_q,
+                             dut.u_fe.g_scan.u_pbuf.mem_i[dut.u_fe.g_scan.u_pbuf.ra],
+                             dut.u_fe.g_scan.u_pbuf.rexp);
+                if (pb_cnt == 13'd1024) begin
                     pb_run <= 1'b0;
-                    $display("[dual_mc_tb] PBUF dumped: 3072 samples");
+                    $display("[dual_mc_tb] PBUF dumped: 1024 samples");
                     $fclose(fd_pbuf);
                     fd_pbuf = 0;
                 end else begin

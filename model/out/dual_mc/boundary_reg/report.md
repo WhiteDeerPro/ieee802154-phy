@@ -25,4 +25,4 @@
 - mixdev1 simv_ps_a16: FA 127 / FB 50（判据 FA≥126, FB≥49） PASS
 - mixdev1 simv_ps_csq: FA 128 / FB 50（判据 FA≥126, FB≥49） PASS
 
-**总结: ALL PASS**（耗时 147s）
+**总结: ALL PASS**（耗时 149s）
