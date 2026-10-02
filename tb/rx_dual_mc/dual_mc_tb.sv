@@ -212,6 +212,7 @@ module dual_mc_tb #(
                 pb_run <= 1'b1;
                 pb_cnt <= 13'd0;
                 $display("[dual_mc_tb] PBUF capture done @k=%0d, dumping...", k);
+`ifdef PBUF_DBG
                 $display("[pbuf-dbg] bmax0=%0d bmax1=%0d phase=%0d fill=%0d blk=%0d",
                          dut.u_fe.g_scan.u_pbuf.bmax0, dut.u_fe.g_scan.u_pbuf.bmax1,
                          dut.u_fe.g_scan.u_pbuf.phase, dut.u_fe.g_scan.u_pbuf.fill,
@@ -221,12 +222,18 @@ module dual_mc_tb #(
                          dut.u_fe.g_scan.u_pbuf.trig_stream);
                 $display("[pbuf-dbg] exp_new=%p", dut.u_fe.g_scan.u_pbuf.exp_new);
                 $display("[pbuf-dbg] exp_old=%p", dut.u_fe.g_scan.u_pbuf.exp_old);
+`endif
             end else if (pb_run) begin
                 pbuf_addr <= pb_cnt[11:0];
                 if (pb_cnt > 0)
+`ifdef PBUF_RAWCOL
+                    // 5 列版（+define+PBUF_RAWCOL）: 附 raw 尾数 + 块指数——仅新版 pbuf 可用
                     $fwrite(fd_pbuf, "%0d %0d %0d %0d %0d\n", pb_cnt - 1, pbuf_i, pbuf_q,
                              dut.u_fe.g_scan.u_pbuf.mem_i[dut.u_fe.g_scan.u_pbuf.ra],
                              dut.u_fe.g_scan.u_pbuf.rexp);
+`else
+                    $fwrite(fd_pbuf, "%0d %0d %0d\n", pb_cnt - 1, pbuf_i, pbuf_q);
+`endif
                 if (pb_cnt == 13'd1024) begin
                     pb_run <= 1'b0;
                     $display("[dual_mc_tb] PBUF dumped: 1024 samples");
@@ -239,6 +246,22 @@ module dual_mc_tb #(
         end
     end
 
+`ifdef PBUF_DBG
+    // —— pbuf 探针（调试：样本 368 的收集→回写→写入链）——
+    always @(posedge clk) begin
+        if (dut.u_fe.g_scan.u_pbuf.accept &&
+            dut.u_fe.g_scan.u_pbuf.total_in == 24'd368)
+            $display("[p368] collect#368 i_in=%0d q_in=%0d",
+                     dut.u_fe.g_scan.u_pbuf.i_in, dut.u_fe.g_scan.u_pbuf.q_in);
+        if (dut.u_fe.g_scan.u_pbuf.wb_en &&
+            dut.u_fe.g_scan.u_pbuf.blk_no == 4'd5 &&
+            dut.u_fe.g_scan.u_pbuf.c_cnt == 6'd48)
+            $display("[p368] wb blk5/off48 Bq=%0d s_i=%0d t_i=%0d wr=%0d",
+                     dut.u_fe.g_scan.u_pbuf.Bq, dut.u_fe.g_scan.u_pbuf.s_i,
+                     dut.u_fe.g_scan.u_pbuf.t_i, dut.u_fe.g_scan.u_pbuf.wr_stream);
+    end
+
+`endif
     // —— 强制 restart 注入（测试）: +INJRST=<k> 在采样 k 注入一拍 scan_restart ——
     // 用于构造"锁定被 restart 打掉"的边界场景（force/release 同步器输入, 不影响 RTL）。
     longint unsigned inj_k = 0;

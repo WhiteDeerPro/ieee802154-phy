@@ -32,12 +32,17 @@ def build_lin():
     simv = HERE / "sim_build" / "simv_pbuf_lin"
     if simv.exists():
         return simv
-    old = subprocess.run(["git", "show", "HEAD:rtl/rx/frontend/preamble_buf.sv"],
+    # BFP8 提交的父提交 = 最后的"线性 4096 版"（HEAD 现已是 BFP8 版）
+    old = subprocess.run(["git", "show", "5a500f0^:rtl/rx/frontend/preamble_buf.sv"],
                          cwd=ROOT, capture_output=True, text=True).stdout
     assert "preamble_buf" in old
     old = old.replace("parameter integer DEPTH = 4096", "parameter integer DEPTH = 1024")
     old = old.replace("parameter integer PRE   = 1024", "parameter integer PRE   = 512")
     old = old.replace("parameter integer POST  = 2048", "parameter integer POST  = 512")
+    # 语义对齐: 旧版触发后多写 1 个样本（513 个）会覆盖窗首地址（off-by-one）;
+    # 新版恰停在 窗尾-1（512 个）, 窗首不被覆盖——对照 bin 同步修正。
+    old = old.replace("if (cnt == POST[11:0]) done_r <= 1'b1;",
+                      "if (cnt == POST[11:0] - 1'b1) done_r <= 1'b1;")
     lin_src = Path("/tmp/preamble_buf_lin.sv")
     lin_src.write_text(old)
     srcs = [str(lin_src) if s == "rtl/rx/frontend/preamble_buf.sv" else str(ROOT / s)
@@ -71,7 +76,7 @@ def gen_and_run(simv, out_dir, tag, frames=4, snr=20, psdu_len=20, seed=11):
     n = len(dump.read_text().splitlines()) if dump.exists() else 0
     print(f"[pbuf:{tag}] rc={r.returncode} dump_lines={n}")
     for line in r.stdout.splitlines():
-        if "pbuf-dbg" in line:
+        if ("pbuf-dbg" in line) or ("p368" in line):
             print("   ", line.strip())
     if n == 0:
         sys.stderr.write(r.stdout[-3000:])
@@ -173,8 +178,9 @@ def main():
     idq = np.right_shift(li.astype(np.int64) + (1 << (sh - 1)), sh)
     ideali = idq << sh
     alg = 10 * np.log10(np.sum(li ** 2) / max(np.sum((ideali - li) ** 2), 1e-9))
+    mism = int(np.sum(idq != da[:, 3])) if da.shape[1] >= 5 else -1
     print(f"[理想] B=13 固定: 量化 SNR = {alg:.1f} dB; 硬件 raw vs 理想 tail 失配 = "
-          f"{int(np.sum(idq != da[:, 3]))}/1024")
+          f"{mism}/1024")
     # 逐块 max（窗内）——看块内真实 max 的分布
     bm = [int(np.max(np.abs(li[k:k+64]))) for k in range(64, n - 64, 64)]
     print("[块max] 窗内块 max 序列:", bm[:12], "...")
