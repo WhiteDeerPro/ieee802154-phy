@@ -1,0 +1,568 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:s="https://github.com/nturley/netlistsvg" width="656" height="806">
+  <style>svg {
+    stroke:#000;
+    fill:none;
+  }
+  text {
+    fill:#000;
+    stroke:none;
+    font-size:10px;
+    font-weight: bold;
+    font-family: "Courier New", monospace;
+  }
+  .nodelabel {
+    text-anchor: middle;
+  }
+  .inputPortLabel {
+    text-anchor: end;
+  }
+  .splitjoinBody {
+    fill:#000;
+  }</style>
+  <g s:type="add" transform="translate(592,753)" s:width="25" s:height="25" id="cell_$add$rtl/rx/frontend/deinterleave.sv:31$2">
+    <s:alias val="$add"/>
+    <circle r="12.5" cx="12.5" cy="12.5" class="cell_$add$rtl/rx/frontend/deinterleave.sv:31$2"/>
+    <line x1="7.5" x2="17.5" y1="12.5" y2="12.5" class="cell_$add$rtl/rx/frontend/deinterleave.sv:31$2"/>
+    <line x1="12.5" x2="12.5" y1="7.5" y2="17.5" class="cell_$add$rtl/rx/frontend/deinterleave.sv:31$2"/>
+    <g s:x="3" s:y="5" s:pid="A"/>
+    <g s:x="3" s:y="20" s:pid="B"/>
+    <g s:x="25" s:y="12.5" s:pid="Y"/>
+  </g>
+  <g s:type="add" transform="translate(235.33333333333334,689.5)" s:width="25" s:height="25" id="cell_$add$rtl/rx/frontend/deinterleave.sv:40$6">
+    <s:alias val="$add"/>
+    <circle r="12.5" cx="12.5" cy="12.5" class="cell_$add$rtl/rx/frontend/deinterleave.sv:40$6"/>
+    <line x1="7.5" x2="17.5" y1="12.5" y2="12.5" class="cell_$add$rtl/rx/frontend/deinterleave.sv:40$6"/>
+    <line x1="12.5" x2="12.5" y1="7.5" y2="17.5" class="cell_$add$rtl/rx/frontend/deinterleave.sv:40$6"/>
+    <g s:x="3" s:y="5" s:pid="A"/>
+    <g s:x="3" s:y="20" s:pid="B"/>
+    <g s:x="25" s:y="12.5" s:pid="Y"/>
+  </g>
+  <g s:type="add" transform="translate(143.66666666666666,260)" s:width="25" s:height="25" id="cell_$add$rtl/rx/frontend/deinterleave.sv:47$9">
+    <s:alias val="$add"/>
+    <circle r="12.5" cx="12.5" cy="12.5" class="cell_$add$rtl/rx/frontend/deinterleave.sv:47$9"/>
+    <line x1="7.5" x2="17.5" y1="12.5" y2="12.5" class="cell_$add$rtl/rx/frontend/deinterleave.sv:47$9"/>
+    <line x1="12.5" x2="12.5" y1="7.5" y2="17.5" class="cell_$add$rtl/rx/frontend/deinterleave.sv:47$9"/>
+    <g s:x="3" s:y="5" s:pid="A"/>
+    <g s:x="3" s:y="20" s:pid="B"/>
+    <g s:x="25" s:y="12.5" s:pid="Y"/>
+  </g>
+  <g s:type="eq" transform="translate(235.33333333333334,546)" s:width="25" s:height="25" id="cell_$eq$rtl/rx/frontend/deinterleave.sv:30$1">
+    <s:alias val="$eq"/>
+    <circle r="12.5" cx="12.5" cy="12.5" class="cell_$eq$rtl/rx/frontend/deinterleave.sv:30$1"/>
+    <line x1="7.5" x2="17.5" y1="10" y2="10" class="cell_$eq$rtl/rx/frontend/deinterleave.sv:30$1"/>
+    <line x1="7.5" x2="17.5" y1="15" y2="15" class="cell_$eq$rtl/rx/frontend/deinterleave.sv:30$1"/>
+    <g s:x="3" s:y="5" s:pid="A"/>
+    <g s:x="3" s:y="20" s:pid="B"/>
+    <g s:x="25" s:y="12.5" s:pid="Y"/>
+  </g>
+  <g s:type="eq" transform="translate(145.33333333333334,577)" s:width="25" s:height="25" id="cell_$eq$rtl/rx/frontend/deinterleave.sv:31$3">
+    <s:alias val="$eq"/>
+    <circle r="12.5" cx="12.5" cy="12.5" class="cell_$eq$rtl/rx/frontend/deinterleave.sv:31$3"/>
+    <line x1="7.5" x2="17.5" y1="10" y2="10" class="cell_$eq$rtl/rx/frontend/deinterleave.sv:31$3"/>
+    <line x1="7.5" x2="17.5" y1="15" y2="15" class="cell_$eq$rtl/rx/frontend/deinterleave.sv:31$3"/>
+    <g s:x="3" s:y="5" s:pid="A"/>
+    <g s:x="3" s:y="20" s:pid="B"/>
+    <g s:x="25" s:y="12.5" s:pid="Y"/>
+  </g>
+  <g s:type="not" transform="translate(302,491)" s:width="30" s:height="20" id="cell_$logic_not$rtl/rx/frontend/deinterleave.sv:34$5">
+    <s:alias val="$_NOT_"/>
+    <s:alias val="$not"/>
+    <s:alias val="$logic_not"/>
+    <path d="M0,0 L0,20 L20,10 Z" class="cell_$logic_not$rtl/rx/frontend/deinterleave.sv:34$5"/>
+    <circle cx="23" cy="10" r="3" class="cell_$logic_not$rtl/rx/frontend/deinterleave.sv:34$5"/>
+    <g s:x="0" s:y="10" s:pid="A"/>
+    <g s:x="25" s:y="10" s:pid="Y"/>
+  </g>
+  <g s:type="not" transform="translate(77,255)" s:width="30" s:height="20" id="cell_$not$rtl/rx/frontend/deinterleave.sv:47$8">
+    <s:alias val="$_NOT_"/>
+    <s:alias val="$not"/>
+    <s:alias val="$logic_not"/>
+    <path d="M0,0 L0,20 L20,10 Z" class="cell_$not$rtl/rx/frontend/deinterleave.sv:47$8"/>
+    <circle cx="23" cy="10" r="3" class="cell_$not$rtl/rx/frontend/deinterleave.sv:47$8"/>
+    <g s:x="0" s:y="10" s:pid="A"/>
+    <g s:x="25" s:y="10" s:pid="Y"/>
+  </g>
+  <g s:type="or" transform="translate(302,561)" s:width="30" s:height="25" id="cell_$or$rtl/rx/frontend/deinterleave.sv:41$7">
+    <s:alias val="$or"/>
+    <s:alias val="$logic_or"/>
+    <s:alias val="$_OR_"/>
+    <path d="M0,25 L0,25 L15,25 A15 12.5 0 0 0 15,0 L0,0" class="cell_$or$rtl/rx/frontend/deinterleave.sv:41$7"/>
+    <path d="M0,0 A30 25 0 0 1 0,25" class="cell_$or$rtl/rx/frontend/deinterleave.sv:41$7"/>
+    <g s:x="3" s:y="5" s:pid="A"/>
+    <g s:x="3" s:y="20" s:pid="B"/>
+    <g s:x="30" s:y="12.5" s:pid="Y"/>
+  </g>
+  <g s:type="dff" transform="translate(527,42)" s:width="30" s:height="40" id="cell_$procdff$40">
+    <s:alias val="$dff"/>
+    <s:alias val="$_DFF_"/>
+    <s:alias val="$_DFF_P_"/>
+    <rect width="30" height="40" x="0" y="0" class="cell_$procdff$40"/>
+    <path d="M0,35 L5,30 L0,25" class="cell_$procdff$40"/>
+    <g s:x="30" s:y="10" s:pid="Q"/>
+    <g s:x="0" s:y="30" s:pid="CLK"/>
+    <g s:x="0" s:y="30" s:pid="C"/>
+    <g s:x="0" s:y="10" s:pid="D"/>
+  </g>
+  <g s:type="dff" transform="translate(527,185)" s:width="30" s:height="40" id="cell_$procdff$41">
+    <s:alias val="$dff"/>
+    <s:alias val="$_DFF_"/>
+    <s:alias val="$_DFF_P_"/>
+    <rect width="30" height="40" x="0" y="0" class="cell_$procdff$41"/>
+    <path d="M0,35 L5,30 L0,25" class="cell_$procdff$41"/>
+    <g s:x="30" s:y="10" s:pid="Q"/>
+    <g s:x="0" s:y="30" s:pid="CLK"/>
+    <g s:x="0" s:y="30" s:pid="C"/>
+    <g s:x="0" s:y="10" s:pid="D"/>
+  </g>
+  <g s:type="dff" transform="translate(527,346)" s:width="30" s:height="40" id="cell_$procdff$42">
+    <s:alias val="$dff"/>
+    <s:alias val="$_DFF_"/>
+    <s:alias val="$_DFF_P_"/>
+    <rect width="30" height="40" x="0" y="0" class="cell_$procdff$42"/>
+    <path d="M0,35 L5,30 L0,25" class="cell_$procdff$42"/>
+    <g s:x="30" s:y="10" s:pid="Q"/>
+    <g s:x="0" s:y="30" s:pid="CLK"/>
+    <g s:x="0" s:y="30" s:pid="C"/>
+    <g s:x="0" s:y="10" s:pid="D"/>
+  </g>
+  <g s:type="dff" transform="translate(462,461)" s:width="30" s:height="40" id="cell_$procdff$43">
+    <s:alias val="$dff"/>
+    <s:alias val="$_DFF_"/>
+    <s:alias val="$_DFF_P_"/>
+    <rect width="30" height="40" x="0" y="0" class="cell_$procdff$43"/>
+    <path d="M0,35 L5,30 L0,25" class="cell_$procdff$43"/>
+    <g s:x="30" s:y="10" s:pid="Q"/>
+    <g s:x="0" s:y="30" s:pid="CLK"/>
+    <g s:x="0" s:y="30" s:pid="C"/>
+    <g s:x="0" s:y="10" s:pid="D"/>
+  </g>
+  <g s:type="mux" transform="translate(308.6666666666667,672)" s:width="20" s:height="40" id="cell_$procmux$10">
+    <s:alias val="$pmux"/>
+    <s:alias val="$mux"/>
+    <s:alias val="$_MUX_"/>
+    <path d="M0,0 L20,10 L20,30 L0,40 Z" class="cell_$procmux$10"/>
+    <g s:x="0" s:y="10" s:pid="A"/>
+    <g s:x="0" s:y="30" s:pid="B"/>
+    <g s:x="10" s:y="35" s:pid="S"/>
+    <g s:x="20" s:y="20" s:pid="Y"/>
+  </g>
+  <g s:type="mux" transform="translate(395.3333333333333,451)" s:width="20" s:height="40" id="cell_$procmux$13">
+    <s:alias val="$pmux"/>
+    <s:alias val="$mux"/>
+    <s:alias val="$_MUX_"/>
+    <path d="M0,0 L20,10 L20,30 L0,40 Z" class="cell_$procmux$13"/>
+    <g s:x="0" s:y="10" s:pid="A"/>
+    <g s:x="0" s:y="30" s:pid="B"/>
+    <g s:x="10" s:y="35" s:pid="S"/>
+    <g s:x="20" s:y="20" s:pid="Y"/>
+  </g>
+  <g s:type="mux" transform="translate(398.6666666666667,326)" s:width="20" s:height="40" id="cell_$procmux$15">
+    <s:alias val="$pmux"/>
+    <s:alias val="$mux"/>
+    <s:alias val="$_MUX_"/>
+    <path d="M0,0 L20,10 L20,30 L0,40 Z" class="cell_$procmux$15"/>
+    <g s:x="0" s:y="10" s:pid="A"/>
+    <g s:x="0" s:y="30" s:pid="B"/>
+    <g s:x="10" s:y="35" s:pid="S"/>
+    <g s:x="20" s:y="20" s:pid="Y"/>
+  </g>
+  <g s:type="mux" transform="translate(465.3333333333333,336)" s:width="20" s:height="40" id="cell_$procmux$18">
+    <s:alias val="$pmux"/>
+    <s:alias val="$mux"/>
+    <s:alias val="$_MUX_"/>
+    <path d="M0,0 L20,10 L20,30 L0,40 Z" class="cell_$procmux$18"/>
+    <g s:x="0" s:y="10" s:pid="A"/>
+    <g s:x="0" s:y="30" s:pid="B"/>
+    <g s:x="10" s:y="35" s:pid="S"/>
+    <g s:x="20" s:y="20" s:pid="Y"/>
+  </g>
+  <g s:type="mux" transform="translate(238.66666666666666,165)" s:width="20" s:height="40" id="cell_$procmux$20">
+    <s:alias val="$pmux"/>
+    <s:alias val="$mux"/>
+    <s:alias val="$_MUX_"/>
+    <path d="M0,0 L20,10 L20,30 L0,40 Z" class="cell_$procmux$20"/>
+    <g s:x="0" s:y="10" s:pid="A"/>
+    <g s:x="0" s:y="30" s:pid="B"/>
+    <g s:x="10" s:y="35" s:pid="S"/>
+    <g s:x="20" s:y="20" s:pid="Y"/>
+  </g>
+  <g s:type="mux" transform="translate(305.3333333333333,175)" s:width="20" s:height="40" id="cell_$procmux$23">
+    <s:alias val="$pmux"/>
+    <s:alias val="$mux"/>
+    <s:alias val="$_MUX_"/>
+    <path d="M0,0 L20,10 L20,30 L0,40 Z" class="cell_$procmux$23"/>
+    <g s:x="0" s:y="10" s:pid="A"/>
+    <g s:x="0" s:y="30" s:pid="B"/>
+    <g s:x="10" s:y="35" s:pid="S"/>
+    <g s:x="20" s:y="20" s:pid="Y"/>
+  </g>
+  <g s:type="mux" transform="translate(398.6666666666667,165)" s:width="20" s:height="40" id="cell_$procmux$25">
+    <s:alias val="$pmux"/>
+    <s:alias val="$mux"/>
+    <s:alias val="$_MUX_"/>
+    <path d="M0,0 L20,10 L20,30 L0,40 Z" class="cell_$procmux$25"/>
+    <g s:x="0" s:y="10" s:pid="A"/>
+    <g s:x="0" s:y="30" s:pid="B"/>
+    <g s:x="10" s:y="35" s:pid="S"/>
+    <g s:x="20" s:y="20" s:pid="Y"/>
+  </g>
+  <g s:type="mux" transform="translate(465.3333333333333,175)" s:width="20" s:height="40" id="cell_$procmux$28">
+    <s:alias val="$pmux"/>
+    <s:alias val="$mux"/>
+    <s:alias val="$_MUX_"/>
+    <path d="M0,0 L20,10 L20,30 L0,40 Z" class="cell_$procmux$28"/>
+    <g s:x="0" s:y="10" s:pid="A"/>
+    <g s:x="0" s:y="30" s:pid="B"/>
+    <g s:x="10" s:y="35" s:pid="S"/>
+    <g s:x="20" s:y="20" s:pid="Y"/>
+  </g>
+  <g s:type="mux" transform="translate(238.66666666666666,22)" s:width="20" s:height="40" id="cell_$procmux$30">
+    <s:alias val="$pmux"/>
+    <s:alias val="$mux"/>
+    <s:alias val="$_MUX_"/>
+    <path d="M0,0 L20,10 L20,30 L0,40 Z" class="cell_$procmux$30"/>
+    <g s:x="0" s:y="10" s:pid="A"/>
+    <g s:x="0" s:y="30" s:pid="B"/>
+    <g s:x="10" s:y="35" s:pid="S"/>
+    <g s:x="20" s:y="20" s:pid="Y"/>
+  </g>
+  <g s:type="mux" transform="translate(305.3333333333333,32)" s:width="20" s:height="40" id="cell_$procmux$33">
+    <s:alias val="$pmux"/>
+    <s:alias val="$mux"/>
+    <s:alias val="$_MUX_"/>
+    <path d="M0,0 L20,10 L20,30 L0,40 Z" class="cell_$procmux$33"/>
+    <g s:x="0" s:y="10" s:pid="A"/>
+    <g s:x="0" s:y="30" s:pid="B"/>
+    <g s:x="10" s:y="35" s:pid="S"/>
+    <g s:x="20" s:y="20" s:pid="Y"/>
+  </g>
+  <g s:type="mux" transform="translate(398.6666666666667,22)" s:width="20" s:height="40" id="cell_$procmux$35">
+    <s:alias val="$pmux"/>
+    <s:alias val="$mux"/>
+    <s:alias val="$_MUX_"/>
+    <path d="M0,0 L20,10 L20,30 L0,40 Z" class="cell_$procmux$35"/>
+    <g s:x="0" s:y="10" s:pid="A"/>
+    <g s:x="0" s:y="30" s:pid="B"/>
+    <g s:x="10" s:y="35" s:pid="S"/>
+    <g s:x="20" s:y="20" s:pid="Y"/>
+  </g>
+  <g s:type="mux" transform="translate(465.3333333333333,32)" s:width="20" s:height="40" id="cell_$procmux$38">
+    <s:alias val="$pmux"/>
+    <s:alias val="$mux"/>
+    <s:alias val="$_MUX_"/>
+    <path d="M0,0 L20,10 L20,30 L0,40 Z" class="cell_$procmux$38"/>
+    <g s:x="0" s:y="10" s:pid="A"/>
+    <g s:x="0" s:y="30" s:pid="B"/>
+    <g s:x="10" s:y="35" s:pid="S"/>
+    <g s:x="20" s:y="20" s:pid="Y"/>
+  </g>
+  <g s:type="inputExt" transform="translate(392,286)" s:width="30" s:height="20" id="cell_clk">
+    <text x="15" y="-4" class="nodelabel cell_clk" s:attribute="ref">clk</text>
+    <s:alias val="$_inputExt_"/>
+    <path d="M0,0 L0,20 L15,20 L30,10 L15,0 Z" class="cell_clk"/>
+    <g s:x="28" s:y="10" s:pid="Y"/>
+  </g>
+  <g s:type="inputExt" transform="translate(232,491)" s:width="30" s:height="20" id="cell_rst_n">
+    <text x="15" y="-4" class="nodelabel cell_rst_n" s:attribute="ref">rst_n</text>
+    <s:alias val="$_inputExt_"/>
+    <path d="M0,0 L0,20 L15,20 L30,10 L15,0 Z" class="cell_rst_n"/>
+    <g s:x="28" s:y="10" s:pid="Y"/>
+  </g>
+  <g s:type="inputExt" transform="translate(12,62)" s:width="30" s:height="20" id="cell_i_in">
+    <text x="15" y="-4" class="nodelabel cell_i_in" s:attribute="ref">i_in</text>
+    <s:alias val="$_inputExt_"/>
+    <path d="M0,0 L0,20 L15,20 L30,10 L15,0 Z" class="cell_i_in"/>
+    <g s:x="28" s:y="10" s:pid="Y"/>
+  </g>
+  <g s:type="inputExt" transform="translate(142,205)" s:width="30" s:height="20" id="cell_q_in">
+    <text x="15" y="-4" class="nodelabel cell_q_in" s:attribute="ref">q_in</text>
+    <s:alias val="$_inputExt_"/>
+    <path d="M0,0 L0,20 L15,20 L30,10 L15,0 Z" class="cell_q_in"/>
+    <g s:x="28" s:y="10" s:pid="Y"/>
+  </g>
+  <g s:type="inputExt" transform="translate(232,246)" s:width="30" s:height="20" id="cell_dv_in">
+    <text x="15" y="-4" class="nodelabel cell_dv_in" s:attribute="ref">dv_in</text>
+    <s:alias val="$_inputExt_"/>
+    <path d="M0,0 L0,20 L15,20 L30,10 L15,0 Z" class="cell_dv_in"/>
+    <g s:x="28" s:y="10" s:pid="Y"/>
+  </g>
+  <g s:type="inputExt" transform="translate(77,556)" s:width="30" s:height="20" id="cell_phase">
+    <text x="15" y="-4" class="nodelabel cell_phase" s:attribute="ref">phase</text>
+    <s:alias val="$_inputExt_"/>
+    <path d="M0,0 L0,20 L15,20 L30,10 L15,0 Z" class="cell_phase"/>
+    <g s:x="28" s:y="10" s:pid="Y"/>
+  </g>
+  <g s:type="outputExt" transform="translate(592,42)" s:width="30" s:height="20" id="cell_chip_i">
+    <text x="15" y="-4" class="nodelabel cell_chip_i" s:attribute="ref">chip_i</text>
+    <s:alias val="$_outputExt_"/>
+    <path d="M30,0 L30,20 L15,20 L0,10 L15,0 Z" class="cell_chip_i"/>
+    <g s:x="0" s:y="10" s:pid="A"/>
+  </g>
+  <g s:type="outputExt" transform="translate(592,185)" s:width="30" s:height="20" id="cell_chip_q">
+    <text x="15" y="-4" class="nodelabel cell_chip_q" s:attribute="ref">chip_q</text>
+    <s:alias val="$_outputExt_"/>
+    <path d="M30,0 L30,20 L15,20 L0,10 L15,0 Z" class="cell_chip_q"/>
+    <g s:x="0" s:y="10" s:pid="A"/>
+  </g>
+  <g s:type="outputExt" transform="translate(592,346)" s:width="30" s:height="20" id="cell_chip_dv">
+    <text x="15" y="-4" class="nodelabel cell_chip_dv" s:attribute="ref">chip_dv</text>
+    <s:alias val="$_outputExt_"/>
+    <path d="M30,0 L30,20 L15,20 L0,10 L15,0 Z" class="cell_chip_dv"/>
+    <g s:x="0" s:y="10" s:pid="A"/>
+  </g>
+  <g s:type="outputExt" transform="translate(592,421.5)" s:width="30" s:height="20" id="cell_s16_out">
+    <text x="15" y="-4" class="nodelabel cell_s16_out" s:attribute="ref">s16_out</text>
+    <s:alias val="$_outputExt_"/>
+    <path d="M30,0 L30,20 L15,20 L0,10 L15,0 Z" class="cell_s16_out"/>
+    <g s:x="0" s:y="10" s:pid="A"/>
+  </g>
+  <g s:type="constant" transform="translate(527,763)" s:width="30" s:height="20" id="cell_0100">
+    <text x="15" y="-4" class="nodelabel cell_0100" s:attribute="ref">0x4</text>
+    <s:alias val="$_constant_"/>
+    <rect width="30" height="20" class="cell_0100"/>
+    <g s:x="30" s:y="10" s:pid="Y"/>
+  </g>
+  <g s:type="constant" transform="translate(142,699.5)" s:width="30" s:height="20" id="cell_0000000000000001">
+    <text x="15" y="-4" class="nodelabel cell_0000000000000001" s:attribute="ref">0x1</text>
+    <s:alias val="$_constant_"/>
+    <rect width="30" height="20" class="cell_0000000000000001"/>
+    <g s:x="30" s:y="10" s:pid="Y"/>
+  </g>
+  <g s:type="constant" transform="translate(77,320)" s:width="30" s:height="20" id="cell_1">
+    <text x="15" y="-4" class="nodelabel cell_1" s:attribute="ref">1</text>
+    <s:alias val="$_constant_"/>
+    <rect width="30" height="20" class="cell_1"/>
+    <g s:x="30" s:y="10" s:pid="Y"/>
+  </g>
+  <g s:type="constant" transform="translate(302,617)" s:width="30" s:height="20" id="cell_0000000000000000">
+    <text x="15" y="-4" class="nodelabel cell_0000000000000000" s:attribute="ref">0x0</text>
+    <s:alias val="$_constant_"/>
+    <rect width="30" height="20" class="cell_0000000000000000"/>
+    <g s:x="30" s:y="10" s:pid="Y"/>
+  </g>
+  <g s:type="constant" transform="translate(392,396)" s:width="30" s:height="20" id="cell_0">
+    <text x="15" y="-4" class="nodelabel cell_0" s:attribute="ref">0</text>
+    <s:alias val="$_constant_"/>
+    <rect width="30" height="20" class="cell_0"/>
+    <g s:x="30" s:y="10" s:pid="Y"/>
+  </g>
+  <g s:type="constant" transform="translate(392,124)" s:width="30" s:height="20" id="cell_000000000000000000000">
+    <text x="15" y="-4" class="nodelabel cell_000000000000000000000" s:attribute="ref">0x0</text>
+    <s:alias val="$_constant_"/>
+    <rect width="30" height="20" class="cell_000000000000000000000"/>
+    <g s:x="30" s:y="10" s:pid="Y"/>
+  </g>
+  <g s:type="split" transform="translate(533,421)" s:width="5" s:height="40" id="cell_$split$,94,95,96,97,102,103,104,105,106,107,108,109,110,111,112,113,">
+    <rect width="5" height="20" class="splitjoinBody" s:generic="body"/>
+    <s:alias val="$_split_"/>
+    <g s:x="0" s:y="20" s:pid="in"/>
+    <g transform="translate(4,10)" s:x="4" s:y="10" s:pid="out0">
+      <text x="5" y="-4">0:3</text>
+    </g>
+  </g>
+  <line x1="538" x2="567" y1="431.5" y2="431.5" class="net_94,95,96,97"/>
+  <line x1="567" x2="567" y1="431.5" y2="758" class="net_94,95,96,97"/>
+  <circle cx="567" cy="431.5" r="2" style="fill:#000" class="net_94,95,96,97"/>
+  <line x1="567" x2="595" y1="758" y2="758" class="net_94,95,96,97"/>
+  <line x1="538" x2="567" y1="431.5" y2="431.5" class="net_94,95,96,97"/>
+  <line x1="567" x2="567" y1="431.5" y2="743" class="net_94,95,96,97"/>
+  <line x1="567" x2="212" y1="743" y2="743" class="net_94,95,96,97"/>
+  <line x1="212" x2="212" y1="743" y2="551" class="net_94,95,96,97"/>
+  <circle cx="567" cy="743" r="2" style="fill:#000" class="net_94,95,96,97"/>
+  <line x1="212" x2="238.33333333333334" y1="551" y2="551" class="net_94,95,96,97"/>
+  <line x1="538" x2="592" y1="431.5" y2="431.5" class="net_94,95,96,97"/>
+  <line x1="557" x2="595" y1="773" y2="773" class="net_378,379,380,381"/>
+  <line x1="492" x2="502" y1="471" y2="471" class="net_94,95,96,97,102,103,104,105,106,107,108,109,110,111,112,113"/>
+  <line x1="502" x2="502" y1="471" y2="732" class="net_94,95,96,97,102,103,104,105,106,107,108,109,110,111,112,113"/>
+  <line x1="502" x2="222" y1="732" y2="732" class="net_94,95,96,97,102,103,104,105,106,107,108,109,110,111,112,113"/>
+  <line x1="222" x2="222" y1="732" y2="694.5" class="net_94,95,96,97,102,103,104,105,106,107,108,109,110,111,112,113"/>
+  <line x1="222" x2="238.33333333333334" y1="694.5" y2="694.5" class="net_94,95,96,97,102,103,104,105,106,107,108,109,110,111,112,113"/>
+  <line x1="492" x2="502" y1="471" y2="471" class="net_94,95,96,97,102,103,104,105,106,107,108,109,110,111,112,113"/>
+  <line x1="502" x2="502" y1="471" y2="732" class="net_94,95,96,97,102,103,104,105,106,107,108,109,110,111,112,113"/>
+  <line x1="502" x2="282" y1="732" y2="732" class="net_94,95,96,97,102,103,104,105,106,107,108,109,110,111,112,113"/>
+  <line x1="282" x2="282" y1="732" y2="682" class="net_94,95,96,97,102,103,104,105,106,107,108,109,110,111,112,113"/>
+  <circle cx="282" cy="732" r="2" style="fill:#000" class="net_94,95,96,97,102,103,104,105,106,107,108,109,110,111,112,113"/>
+  <circle cx="502" cy="471" r="2" style="fill:#000" class="net_94,95,96,97,102,103,104,105,106,107,108,109,110,111,112,113"/>
+  <line x1="282" x2="308.6666666666667" y1="682" y2="682" class="net_94,95,96,97,102,103,104,105,106,107,108,109,110,111,112,113"/>
+  <line x1="492" x2="533.5" y1="471" y2="471" class="net_94,95,96,97,102,103,104,105,106,107,108,109,110,111,112,113"/>
+  <line x1="533.5" x2="533.5" y1="471" y2="442" class="net_94,95,96,97,102,103,104,105,106,107,108,109,110,111,112,113"/>
+  <line x1="172" x2="238.33333333333334" y1="709.5" y2="709.5" class="net_382,383,384,385,386,387,388,389,390,391,392,393,394,395,396,397"/>
+  <line x1="102" x2="146.66666666666666" y1="265" y2="265" class="net_130,131,132,133,134,135,136,137,138,139,140,141,142,143,144,145,146,147,148,149,150"/>
+  <line x1="107" x2="117" y1="330" y2="330" class="net_398"/>
+  <line x1="117" x2="117" y1="330" y2="280" class="net_398"/>
+  <line x1="117" x2="146.66666666666666" y1="280" y2="280" class="net_398"/>
+  <line x1="105" x2="238.33333333333334" y1="566" y2="566" class="net_47,48,49,50"/>
+  <line x1="105" x2="127" y1="566" y2="566" class="net_47,48,49,50"/>
+  <line x1="127" x2="127" y1="566" y2="597" class="net_47,48,49,50"/>
+  <circle cx="127" cy="566" r="2" style="fill:#000" class="net_47,48,49,50"/>
+  <line x1="127" x2="148.33333333333334" y1="597" y2="597" class="net_47,48,49,50"/>
+  <line x1="617" x2="644" y1="765.5" y2="765.5" class="net_98,99,100,101"/>
+  <line x1="644" x2="644" y1="765.5" y2="793" class="net_98,99,100,101"/>
+  <line x1="644" x2="117" y1="793" y2="793" class="net_98,99,100,101"/>
+  <line x1="117" x2="117" y1="793" y2="582" class="net_98,99,100,101"/>
+  <line x1="117" x2="148.33333333333334" y1="582" y2="582" class="net_98,99,100,101"/>
+  <line x1="260" x2="302" y1="501" y2="501" class="net_3"/>
+  <line x1="40" x2="52" y1="72" y2="72" class="net_4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24"/>
+  <line x1="52" x2="52" y1="72" y2="265" class="net_4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24"/>
+  <circle cx="52" cy="72" r="2" style="fill:#000" class="net_4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24"/>
+  <line x1="52" x2="77" y1="265" y2="265" class="net_4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24"/>
+  <line x1="40" x2="272" y1="72" y2="72" class="net_4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24"/>
+  <line x1="272" x2="272" y1="72" y2="62" class="net_4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24"/>
+  <line x1="272" x2="305.3333333333333" y1="62" y2="62" class="net_4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24"/>
+  <line x1="260.33333333333337" x2="282" y1="558.5" y2="558.5" class="net_172"/>
+  <line x1="282" x2="282" y1="558.5" y2="566" class="net_172"/>
+  <circle cx="282" cy="558.5" r="2" style="fill:#000" class="net_172"/>
+  <line x1="282" x2="305" y1="566" y2="566" class="net_172"/>
+  <line x1="260.33333333333337" x2="282" y1="558.5" y2="558.5" class="net_172"/>
+  <line x1="282" x2="282" y1="558.5" y2="225" class="net_172"/>
+  <line x1="282" x2="315.3333333333333" y1="225" y2="225" class="net_172"/>
+  <circle cx="282" cy="225" r="2" style="fill:#000" class="net_172"/>
+  <line x1="315.3333333333333" x2="315.3333333333333" y1="225" y2="210" class="net_172"/>
+  <line x1="260.33333333333337" x2="282" y1="558.5" y2="558.5" class="net_172"/>
+  <line x1="282" x2="282" y1="558.5" y2="165" class="net_172"/>
+  <line x1="282" x2="315.3333333333333" y1="165" y2="165" class="net_172"/>
+  <line x1="315.3333333333333" x2="315.3333333333333" y1="165" y2="67" class="net_172"/>
+  <line x1="170.33333333333334" x2="202" y1="589.5" y2="589.5" class="net_173"/>
+  <line x1="202" x2="202" y1="589.5" y2="581" class="net_173"/>
+  <circle cx="202" cy="581" r="2" style="fill:#000" class="net_173"/>
+  <line x1="202" x2="305" y1="581" y2="581" class="net_173"/>
+  <line x1="170.33333333333334" x2="202" y1="589.5" y2="589.5" class="net_173"/>
+  <line x1="202" x2="202" y1="589.5" y2="226" class="net_173"/>
+  <line x1="202" x2="248.66666666666666" y1="226" y2="226" class="net_173"/>
+  <circle cx="202" cy="226" r="2" style="fill:#000" class="net_173"/>
+  <line x1="248.66666666666666" x2="248.66666666666666" y1="226" y2="200" class="net_173"/>
+  <line x1="170.33333333333334" x2="202" y1="589.5" y2="589.5" class="net_173"/>
+  <line x1="202" x2="202" y1="589.5" y2="144" class="net_173"/>
+  <line x1="202" x2="248.66666666666666" y1="144" y2="144" class="net_173"/>
+  <line x1="248.66666666666666" x2="248.66666666666666" y1="144" y2="57" class="net_173"/>
+  <line x1="420" x2="452" y1="296" y2="296" class="net_2"/>
+  <line x1="452" x2="452" y1="296" y2="82" class="net_2"/>
+  <line x1="452" x2="502" y1="82" y2="82" class="net_2"/>
+  <line x1="502" x2="502" y1="82" y2="72" class="net_2"/>
+  <circle cx="452" cy="296" r="2" style="fill:#000" class="net_2"/>
+  <line x1="502" x2="527" y1="72" y2="72" class="net_2"/>
+  <line x1="420" x2="452" y1="296" y2="296" class="net_2"/>
+  <line x1="452" x2="452" y1="296" y2="225" class="net_2"/>
+  <line x1="452" x2="502" y1="225" y2="225" class="net_2"/>
+  <line x1="502" x2="502" y1="225" y2="215" class="net_2"/>
+  <circle cx="452" cy="225" r="2" style="fill:#000" class="net_2"/>
+  <line x1="502" x2="527" y1="215" y2="215" class="net_2"/>
+  <line x1="420" x2="452" y1="296" y2="296" class="net_2"/>
+  <line x1="452" x2="452" y1="296" y2="386" class="net_2"/>
+  <line x1="452" x2="502" y1="386" y2="386" class="net_2"/>
+  <line x1="502" x2="502" y1="386" y2="376" class="net_2"/>
+  <circle cx="452" cy="386" r="2" style="fill:#000" class="net_2"/>
+  <line x1="502" x2="527" y1="376" y2="376" class="net_2"/>
+  <line x1="420" x2="452" y1="296" y2="296" class="net_2"/>
+  <line x1="452" x2="452" y1="296" y2="491" class="net_2"/>
+  <line x1="452" x2="462" y1="491" y2="491" class="net_2"/>
+  <line x1="485.3333333333333" x2="527" y1="52" y2="52" class="net_176,177,178,179,180,181,182,183,184,185,186,187,188,189,190,191,192,193,194,195,196"/>
+  <line x1="485.3333333333333" x2="527" y1="195" y2="195" class="net_197,198,199,200,201,202,203,204,205,206,207,208,209,210,211,212,213,214,215,216,217"/>
+  <line x1="485.3333333333333" x2="527" y1="356" y2="356" class="net_218"/>
+  <line x1="415.3333333333333" x2="462" y1="471" y2="471" class="net_219,220,221,222,223,224,225,226,227,228,229,230,231,232,233,234"/>
+  <line x1="260.33333333333337" x2="308.6666666666667" y1="702" y2="702" class="net_114,115,116,117,118,119,120,121,122,123,124,125,126,127,128,129"/>
+  <line x1="260" x2="272" y1="256" y2="256" class="net_46"/>
+  <line x1="272" x2="272" y1="256" y2="722" class="net_46"/>
+  <line x1="272" x2="318.6666666666667" y1="722" y2="722" class="net_46"/>
+  <circle cx="272" cy="256" r="2" style="fill:#000" class="net_46"/>
+  <line x1="318.6666666666667" x2="318.6666666666667" y1="722" y2="707" class="net_46"/>
+  <line x1="260" x2="272" y1="256" y2="256" class="net_46"/>
+  <line x1="272" x2="272" y1="256" y2="596" class="net_46"/>
+  <line x1="272" x2="362" y1="596" y2="596" class="net_46"/>
+  <line x1="362" x2="362" y1="596" y2="376" class="net_46"/>
+  <line x1="362" x2="408.6666666666667" y1="376" y2="376" class="net_46"/>
+  <circle cx="272" cy="596" r="2" style="fill:#000" class="net_46"/>
+  <line x1="408.6666666666667" x2="408.6666666666667" y1="376" y2="361" class="net_46"/>
+  <line x1="260" x2="408.6666666666667" y1="256" y2="256" class="net_46"/>
+  <line x1="408.6666666666667" x2="408.6666666666667" y1="256" y2="200" class="net_46"/>
+  <line x1="260" x2="272" y1="256" y2="256" class="net_46"/>
+  <line x1="272" x2="272" y1="256" y2="104" class="net_46"/>
+  <line x1="272" x2="408.6666666666667" y1="104" y2="104" class="net_46"/>
+  <line x1="408.6666666666667" x2="408.6666666666667" y1="104" y2="57" class="net_46"/>
+  <line x1="328.6666666666667" x2="372" y1="692" y2="692" class="net_235,236,237,238,239,240,241,242,243,244,245,246,247,248,249,250"/>
+  <line x1="372" x2="372" y1="692" y2="461" class="net_235,236,237,238,239,240,241,242,243,244,245,246,247,248,249,250"/>
+  <line x1="372" x2="395.3333333333333" y1="461" y2="461" class="net_235,236,237,238,239,240,241,242,243,244,245,246,247,248,249,250"/>
+  <line x1="332" x2="382" y1="627" y2="627" class="net_399,400,401,402,403,404,405,406,407,408,409,410,411,412,413,414"/>
+  <line x1="382" x2="382" y1="627" y2="481" class="net_399,400,401,402,403,404,405,406,407,408,409,410,411,412,413,414"/>
+  <line x1="382" x2="395.3333333333333" y1="481" y2="481" class="net_399,400,401,402,403,404,405,406,407,408,409,410,411,412,413,414"/>
+  <line x1="327" x2="405.3333333333333" y1="501" y2="501" class="net_174"/>
+  <line x1="405.3333333333333" x2="405.3333333333333" y1="501" y2="486" class="net_174"/>
+  <line x1="327" x2="342" y1="501" y2="501" class="net_174"/>
+  <line x1="342" x2="342" y1="501" y2="511" class="net_174"/>
+  <line x1="342" x2="442" y1="511" y2="511" class="net_174"/>
+  <line x1="442" x2="442" y1="511" y2="397" class="net_174"/>
+  <line x1="442" x2="475.3333333333333" y1="397" y2="397" class="net_174"/>
+  <circle cx="342" cy="501" r="2" style="fill:#000" class="net_174"/>
+  <line x1="475.3333333333333" x2="475.3333333333333" y1="397" y2="371" class="net_174"/>
+  <line x1="327" x2="342" y1="501" y2="501" class="net_174"/>
+  <line x1="342" x2="342" y1="501" y2="245" class="net_174"/>
+  <line x1="342" x2="475.3333333333333" y1="245" y2="245" class="net_174"/>
+  <circle cx="342" cy="245" r="2" style="fill:#000" class="net_174"/>
+  <line x1="475.3333333333333" x2="475.3333333333333" y1="245" y2="210" class="net_174"/>
+  <line x1="327" x2="342" y1="501" y2="501" class="net_174"/>
+  <line x1="342" x2="342" y1="501" y2="93" class="net_174"/>
+  <line x1="342" x2="475.3333333333333" y1="93" y2="93" class="net_174"/>
+  <line x1="475.3333333333333" x2="475.3333333333333" y1="93" y2="67" class="net_174"/>
+  <line x1="557" x2="567" y1="356" y2="356" class="net_93"/>
+  <line x1="567" x2="567" y1="356" y2="316" class="net_93"/>
+  <line x1="567" x2="382" y1="316" y2="316" class="net_93"/>
+  <line x1="382" x2="382" y1="316" y2="336" class="net_93"/>
+  <circle cx="567" cy="356" r="2" style="fill:#000" class="net_93"/>
+  <line x1="382" x2="398.6666666666667" y1="336" y2="336" class="net_93"/>
+  <line x1="557" x2="592" y1="356" y2="356" class="net_93"/>
+  <line x1="332" x2="352" y1="573.5" y2="573.5" class="net_175"/>
+  <line x1="352" x2="352" y1="573.5" y2="356" class="net_175"/>
+  <line x1="352" x2="398.6666666666667" y1="356" y2="356" class="net_175"/>
+  <line x1="418.6666666666667" x2="465.3333333333333" y1="346" y2="346" class="net_251"/>
+  <line x1="422" x2="432" y1="406" y2="406" class="net_415"/>
+  <line x1="432" x2="432" y1="406" y2="366" class="net_415"/>
+  <line x1="432" x2="465.3333333333333" y1="366" y2="366" class="net_415"/>
+  <line x1="557" x2="567" y1="195" y2="195" class="net_72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92"/>
+  <line x1="567" x2="567" y1="195" y2="154" class="net_72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92"/>
+  <line x1="567" x2="222" y1="154" y2="154" class="net_72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92"/>
+  <line x1="222" x2="222" y1="154" y2="175" class="net_72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92"/>
+  <circle cx="567" cy="195" r="2" style="fill:#000" class="net_72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92"/>
+  <line x1="222" x2="238.66666666666666" y1="175" y2="175" class="net_72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92"/>
+  <line x1="557" x2="567" y1="195" y2="195" class="net_72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92"/>
+  <line x1="567" x2="567" y1="195" y2="266" class="net_72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92"/>
+  <line x1="567" x2="382" y1="266" y2="266" class="net_72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92"/>
+  <line x1="382" x2="382" y1="266" y2="175" class="net_72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92"/>
+  <line x1="382" x2="398.6666666666667" y1="175" y2="175" class="net_72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92"/>
+  <line x1="557" x2="592" y1="195" y2="195" class="net_72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92"/>
+  <line x1="168.66666666666666" x2="192" y1="272.5" y2="272.5" class="net_151,152,153,154,155,156,157,158,159,160,161,162,163,164,165,166,167,168,169,170,171"/>
+  <line x1="192" x2="192" y1="272.5" y2="195" class="net_151,152,153,154,155,156,157,158,159,160,161,162,163,164,165,166,167,168,169,170,171"/>
+  <line x1="192" x2="238.66666666666666" y1="195" y2="195" class="net_151,152,153,154,155,156,157,158,159,160,161,162,163,164,165,166,167,168,169,170,171"/>
+  <line x1="258.66666666666663" x2="305.3333333333333" y1="185" y2="185" class="net_252,253,254,255,256,257,258,259,260,261,262,263,264,265,266,267,268,269,270,271,272"/>
+  <line x1="170" x2="292" y1="215" y2="215" class="net_25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45"/>
+  <line x1="292" x2="292" y1="215" y2="205" class="net_25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45"/>
+  <line x1="292" x2="305.3333333333333" y1="205" y2="205" class="net_25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45"/>
+  <line x1="170" x2="182" y1="215" y2="215" class="net_25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45"/>
+  <line x1="182" x2="182" y1="215" y2="52" class="net_25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45"/>
+  <circle cx="182" cy="215" r="2" style="fill:#000" class="net_25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45"/>
+  <line x1="182" x2="238.66666666666666" y1="52" y2="52" class="net_25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45"/>
+  <line x1="325.3333333333333" x2="398.6666666666667" y1="195" y2="195" class="net_273,274,275,276,277,278,279,280,281,282,283,284,285,286,287,288,289,290,291,292,293"/>
+  <line x1="418.6666666666667" x2="465.3333333333333" y1="185" y2="185" class="net_294,295,296,297,298,299,300,301,302,303,304,305,306,307,308,309,310,311,312,313,314"/>
+  <line x1="422" x2="432" y1="134" y2="134" class="net_416,417,418,419,420,421,422,423,424,425,426,427,428,429,430,431,432,433,434,435,436"/>
+  <line x1="432" x2="432" y1="134" y2="205" class="net_416,417,418,419,420,421,422,423,424,425,426,427,428,429,430,431,432,433,434,435,436"/>
+  <circle cx="432" cy="134" r="2" style="fill:#000" class="net_416,417,418,419,420,421,422,423,424,425,426,427,428,429,430,431,432,433,434,435,436"/>
+  <line x1="432" x2="465.3333333333333" y1="205" y2="205" class="net_416,417,418,419,420,421,422,423,424,425,426,427,428,429,430,431,432,433,434,435,436"/>
+  <line x1="422" x2="432" y1="134" y2="134" class="net_416,417,418,419,420,421,422,423,424,425,426,427,428,429,430,431,432,433,434,435,436"/>
+  <line x1="432" x2="432" y1="134" y2="62" class="net_416,417,418,419,420,421,422,423,424,425,426,427,428,429,430,431,432,433,434,435,436"/>
+  <line x1="432" x2="465.3333333333333" y1="62" y2="62" class="net_416,417,418,419,420,421,422,423,424,425,426,427,428,429,430,431,432,433,434,435,436"/>
+  <line x1="557" x2="567" y1="52" y2="52" class="net_51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71"/>
+  <line x1="567" x2="567" y1="52" y2="12" class="net_51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71"/>
+  <line x1="567" x2="222" y1="12" y2="12" class="net_51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71"/>
+  <line x1="222" x2="222" y1="12" y2="32" class="net_51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71"/>
+  <line x1="222" x2="238.66666666666666" y1="32" y2="32" class="net_51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71"/>
+  <line x1="557" x2="567" y1="52" y2="52" class="net_51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71"/>
+  <line x1="567" x2="567" y1="52" y2="12" class="net_51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71"/>
+  <line x1="567" x2="342" y1="12" y2="12" class="net_51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71"/>
+  <line x1="342" x2="342" y1="12" y2="32" class="net_51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71"/>
+  <circle cx="342" cy="12" r="2" style="fill:#000" class="net_51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71"/>
+  <circle cx="567" cy="52" r="2" style="fill:#000" class="net_51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71"/>
+  <line x1="342" x2="398.6666666666667" y1="32" y2="32" class="net_51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71"/>
+  <line x1="557" x2="592" y1="52" y2="52" class="net_51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71"/>
+  <line x1="258.66666666666663" x2="305.3333333333333" y1="42" y2="42" class="net_315,316,317,318,319,320,321,322,323,324,325,326,327,328,329,330,331,332,333,334,335"/>
+  <line x1="325.3333333333333" x2="398.6666666666667" y1="52" y2="52" class="net_336,337,338,339,340,341,342,343,344,345,346,347,348,349,350,351,352,353,354,355,356"/>
+  <line x1="418.6666666666667" x2="465.3333333333333" y1="42" y2="42" class="net_357,358,359,360,361,362,363,364,365,366,367,368,369,370,371,372,373,374,375,376,377"/>
+</svg>

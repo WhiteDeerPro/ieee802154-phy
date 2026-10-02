@@ -76,7 +76,7 @@ def main():
 
     # ---- 2) edge 抖动扫描 ----
     lines += ["## 2. edge 抖动扫描（140 帧）", ""]
-    for name, low in (('simv_ps_a16', 93), ('simv_ps_csq', 85)):
+    for name, low in (('simv_ps_a16', 93), ('simv_ps_csq', 92)):
         okA, okB, fs = run('edge', name, 'edge')
         n = len(okA | okB)
         good = n >= low
