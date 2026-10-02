@@ -244,6 +244,16 @@ module dual_mc_tb #(
             $fwrite(fd_eye, "%0d %0d %0d\n", k, dut.u_fe.mf_i, dut.u_fe.mf_q);
     end
 
+    // —— VCD 波形 dump: +VCD=<path>（dump 同步器内部, 供波形/时序分析）——
+    // 仅 EXTPH=0（扫描路径存在）时有效; 用 gtkwave 或脚本渲染。
+    string vcd_path = "";
+    initial begin
+        if (EXTPH == 0 && $value$plusargs("VCD=%s", vcd_path)) begin
+            $dumpfile(vcd_path);
+            $dumpvars(0, dut.u_fe.g_scan.u_sync);
+        end
+    end
+
     // —— 码片级消旋 dump: +ROTDUMP=<path>（每码片一行: A/B k rot_i rot_q）——
     // 供 Python 侧做解扩星座/符号判决（每 32 片一符号, 与 despreader 同口径）。
     string rot_path = "";
