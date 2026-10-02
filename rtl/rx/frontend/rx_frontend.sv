@@ -170,7 +170,10 @@ module rx_frontend #(
             if (SYNC_DIRECT) begin
                 phase_fix   <= ext_lock_phase;
                 phase_valid <= 1'b1;
-            end else if (detect && !detect_d) begin
+            // [治理2, 2026-10-02] 采用条件新增"窗口内电平": 锁定若发生在段确认(开窗)
+            // 前若干拍（紧邻开窗）, 其上升沿落在窗外面被丢弃, 且其后再无新沿（保持 LOCK）
+            // → 永不采用（实测 Csq 早锁错失 ~7 拍）。开窗后 detect 仍高时视同有效沿。
+            end else if (detect && (!detect_d || (RST_EN && latch_armed))) begin
                 if (!RST_EN || latch_armed) begin
                     if (ALIGN_GATE && RST_EN) begin
                         // 网格对齐门(仅 RST_EN 的新扫描路径): 不立即写, 挂起到"抽取点(落点0)或其次4拍(落点4)"再写。
