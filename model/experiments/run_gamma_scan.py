@@ -13,9 +13,8 @@
 import sys, subprocess
 from pathlib import Path
 import numpy as np
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
+import _common
+plt = _common.init()             # Agg + 中文字体
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'tb/rx_dual_mc'))

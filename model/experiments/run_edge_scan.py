@@ -21,11 +21,8 @@ import run_dual_mc as R          # noqa: E402
 import mc_gen                    # noqa: E402
 import subprocess                # noqa: E402
 
-import matplotlib                # noqa: E402
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt  # noqa: E402
-plt.rcParams["font.sans-serif"] = ["Noto Sans CJK SC", "DejaVu Sans"]
-plt.rcParams["axes.unicode_minus"] = False
+import _common                   # noqa: E402
+plt = _common.init()             # Agg + 中文字体（统一，替代手写 rcParams）
 
 DMC = ROOT / 'model/out/dual_mc'
 OUT = DMC / 'edge'

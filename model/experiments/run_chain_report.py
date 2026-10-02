@@ -14,14 +14,11 @@
 """
 import numpy as np, json, collections, sys
 from pathlib import Path
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'model'))
-import visualize as V                                  # noqa: E402
-V.use_cjk_font()
+import _common                                         # noqa: E402
+plt = _common.init()                                   # Agg + 中文字体
 
 rep  = ROOT / 'model/out/dual_mc/chain_report'
 eyed = ROOT / 'model/out/dual_mc/chain_report_eye'
