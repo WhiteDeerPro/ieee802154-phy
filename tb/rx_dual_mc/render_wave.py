@@ -20,7 +20,8 @@ plt.rcParams["font.sans-serif"] = ["Noto Sans CJK SC", "Noto Sans CJK TC",
 plt.rcParams["axes.unicode_minus"] = False
 
 WANT = ["i_in", "q_in", "state", "c_e", "pmax", "pcnt", "mcnt", "ewcnt",
-        "smp_cnt", "accR", "accI", "serve", "detect", "locked_phase", "ready"]
+        "smp_cnt", "accR", "accI", "serve", "detect", "locked_phase", "ready",
+        "scan_restart", "vcnt"]
 
 
 def parse_vcd(path):

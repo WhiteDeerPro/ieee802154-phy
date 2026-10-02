@@ -244,13 +244,25 @@ module dual_mc_tb #(
             $fwrite(fd_eye, "%0d %0d %0d\n", k, dut.u_fe.mf_i, dut.u_fe.mf_q);
     end
 
-    // —— VCD 波形 dump: +VCD=<path>（dump 同步器内部, 供波形/时序分析）——
-    // 仅 EXTPH=0（扫描路径存在）时有效; 用 gtkwave 或脚本渲染。
+    // —— VCD 波形 dump: +VCD=<path> [VCDT0=.. VCDT1=..]（dump 同步器内部）——
+    // 仅 EXTPH=0（扫描路径存在）时有效; 给定 VCDT0/T1 时只 dump 该采样窗口。
     string vcd_path = "";
+    longint unsigned vcd_t0 = 0, vcd_t1 = 0;
+    reg vcd_en = 1'b0;
     initial begin
         if (EXTPH == 0 && $value$plusargs("VCD=%s", vcd_path)) begin
+            void'($value$plusargs("VCDT0=%d", vcd_t0));
+            void'($value$plusargs("VCDT1=%d", vcd_t1));
             $dumpfile(vcd_path);
             $dumpvars(0, dut.u_fe.g_scan.u_sync);
+            vcd_en <= 1'b1;
+            if (vcd_t1 != 0) $dumpoff;        // 窗口模式: 先关, 到点再开
+        end
+    end
+    always @(posedge clk) begin
+        if (vcd_en) begin
+            if (vcd_t1 != 0 && k == vcd_t0) $dumpon;
+            if (vcd_t1 != 0 && k == vcd_t1) $dumpoff;
         end
     end
 
