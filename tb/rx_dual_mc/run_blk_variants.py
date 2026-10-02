@@ -22,7 +22,7 @@ def build_blk(n):
     srcs = [str(src) if s == 'rtl/rx/frontend/preamble_buf.sv' else str(ROOT / s)
             for s in R.SOURCES]
     csrc = R.SIM_DIR / f"csrc_bfp_blk{n}"
-    csrc.mkdir(exist_ok=True)
+    csrc.mkdir(parents=True, exist_ok=True)
     cmd = [f"{R.VCS_ENV['VCS_HOME']}/bin/vcs", "-full64", "-sverilog",
            "-timescale=1ns/1ps", "-o", str(out),
            "+incdir+" + str(ROOT / 'rtl' / 'rx')] + srcs

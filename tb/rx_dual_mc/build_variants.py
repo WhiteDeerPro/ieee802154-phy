@@ -16,7 +16,7 @@ def build(out, sync_rel):
            "-timescale=1ns/1ps", "-o", str(R.SIM_DIR / out),
            "+incdir+" + str(ROOT / 'rtl' / 'rx'), RST_OPT] + srcs
     csrc = R.SIM_DIR / f"csrc_{out}"
-    csrc.mkdir(exist_ok=True)
+    csrc.mkdir(parents=True, exist_ok=True)
     r = subprocess.run(cmd, cwd=csrc, env=R.VCS_ENV, capture_output=True, text=True)
     ok = r.returncode == 0
     print(f"{out}: {'ok' if ok else 'FAIL'}")
