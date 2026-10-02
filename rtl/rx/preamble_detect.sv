@@ -35,6 +35,10 @@ module preamble_detect #(
     input  wire signed [W-1:0]  i_in,
     input  wire signed [W-1:0]  q_in,
     input  wire                 dv_in,
+    // ---- 运行期虚警控制（上位机/固件可写；默认值 = 编译期标定）----
+    input  wire [15:0]          cfg_gamma_num   = 16'd21,
+    input  wire [7:0]           cfg_gamma_shift = 8'd5,
+    input  wire [7:0]           cfg_conf_cnt    = 8'd2,
     output reg                  det_pulse      // 单拍脉冲 (每 DEC 拍最多一次)
 );
     localparam integer DEPTH = D + L + 1;      // 样本历史深度 (抽头最大索引 = D+L)
@@ -116,20 +120,29 @@ module preamble_detect #(
 
     // 门限参考: 0=pwr(窗能量, 现状/SNR 型); 1=nse(噪声底, CFAR 型)
     wire [PW-1:0] thr_ref = THR_SRC ? nse : pwr;
-    wire [PW+15:0] thr = (thr_ref * GAMMA_NUM) >> GAMMA_SHIFT;
+    // γ 改为运行期可写（cfg_gamma_num/2^cfg_gamma_shift）；默认值与编译期标定一致
+    wire [PW+31:0] thr = (thr_ref * cfg_gamma_num) >> cfg_gamma_shift[4:0];
     wire [PW+15:0] mag_ext = {{(PW+16-AW-1){1'b0}}, mag_est};
-    wire hit_cur = (mag_ext > thr);
+    wire hit_cur = (mag_ext > thr[PW+15:0]);
 
-    // ---------------- 连续 CONF_CNT 拍确认 (抗虚警, 参数化) ----------------
-    // 前导期 Λ 持续超阈; 噪声尖峰难连续。CONF_CNT=2 与历史行为等价。
-    reg [CONF_CNT-1:0] hit_hist;
+    // ---------------- 连续确认 (运行期可写: cfg_conf_cnt ∈ [2,8]) ----------------
+    // 固定 8 拍历史 + 组合计算"含当前拍的连续命中数"，与 cfg_conf_cnt 比较；
+    // cfg_conf_cnt=2 时与历史行为（当前拍 & 上一拍）逐位等价。
+    reg [7:0] hit_hist;            // hit_hist[0] = 上一拍命中
+    reg [3:0] consec;
+    integer hi;
+    always @* begin
+        consec = hit_cur ? 4'd1 : 4'd0;
+        for (hi = 0; hi < 7; hi = hi + 1)
+            if (hit_hist[hi] && (consec == hi + 1)) consec = consec + 4'd1;
+    end
     always @(posedge clk) begin
         if (!rst_n) begin
             det_pulse <= 1'b0;
-            hit_hist  <= {CONF_CNT{1'b0}};
+            hit_hist  <= 8'd0;
         end else if (dv_in && sample_en) begin
-            hit_hist  <= {hit_hist[CONF_CNT-2:0], hit_cur};
-            det_pulse <= hit_cur & (&hit_hist[CONF_CNT-2:0]);
+            hit_hist  <= {hit_hist[6:0], hit_cur};
+            det_pulse <= (consec >= {1'b0, cfg_conf_cnt[3:0]});
         end
     end
 endmodule
