@@ -1,3 +1,5 @@
+// [状态: 现役 (v1.1)] A16 基线——rx_frontend 默认例化; 主回归 SOURCES (simv_ps_a16)。
+//   备选/对照与选用方式见 rtl/README.md 与 docs/19。
 // preamble_sync.sv —— 前馈同步: 8 相位扫描 (块间自相关) → argmax 锁定
 // → 去交错码片流 → SFD 滑窗 (窗锚定模板) 定帧边界
 // 短包场景无 PLL: 定时一次测定后 free-run (docs/05 及讨论记录)。
