@@ -30,6 +30,21 @@ inc_b = R.inc_from_cfo(-100e3) & 0xFFFFFF
 PASS = True
 
 
+def ensure_scenes():
+    """场景缺失（如清理过 out 产物）时自动重建——regen_scenes 一键恢复。"""
+    need = ['snr20', 'snr6', 'mixdev1', 'edge']
+    missing = [d for d in need
+               if not (DMC / d / 'mem.bin').exists()
+               or not (DMC / d / 'frames.npz').exists()]
+    if missing:
+        print(f"[reg] 场景缺失 {missing} —— 自动重建（regen_scenes）...", flush=True)
+        import regen_scenes as RS
+        RS.gen_dual('snr20', 20)
+        RS.gen_dual('snr6', 6)
+        RS.gen_mixdev()
+        RS.gen_edge()
+
+
 def run(stream, simv_name, tag, inj=0):
     d = DMC / stream
     m = json.load(open(d / 'meta.json'))
@@ -58,6 +73,7 @@ def main():
     global PASS
     lines = ["# 边界回归报告", ""]
     t0 = time.time()
+    ensure_scenes()
 
     # ---- 1) 注入边界 ----
     lines += ["## 1. 注入边界（snr20 帧 9：±{0,1000,1500,3000}）", ""]

@@ -264,14 +264,18 @@ module dual_mc_tb #(
 `endif
     // —— 强制 restart 注入（测试）: +INJRST=<k> 在采样 k 注入一拍 scan_restart ——
     // 用于构造"锁定被 restart 打掉"的边界场景（force/release 同步器输入, 不影响 RTL）。
-    longint unsigned inj_k = 0;
-    initial void'($value$plusargs("INJRST=%d", inj_k));
-    always @(posedge clk) begin
-        if (inj_k != 0 && k == inj_k)
-            force dut.u_fe.g_scan.u_sync.scan_restart = 1'b1;
-        else if (inj_k != 0 && k == inj_k + 1)
-            release dut.u_fe.g_scan.u_sync.scan_restart;
+    generate
+    if (EXTPH == 0) begin : g_inj        // scan_restart 只在扫描分支存在
+        longint unsigned inj_k = 0;
+        initial void'($value$plusargs("INJRST=%d", inj_k));
+        always @(posedge clk) begin
+            if (inj_k != 0 && k == inj_k)
+                force dut.u_fe.g_scan.u_sync.scan_restart = 1'b1;
+            else if (inj_k != 0 && k == inj_k + 1)
+                release dut.u_fe.g_scan.u_sync.scan_restart;
+        end
     end
+    endgenerate
 
     // —— 眼图 dump: +EYEDUMP=<path> +EYES=<start> +EYEE=<end>（采样级 MF 输出）——
     // 采样级不加消旋（RTL 的消旋在码片级），Python 侧用与各通道同参数的
@@ -299,7 +303,7 @@ module dual_mc_tb #(
             void'($value$plusargs("VCDT0=%d", vcd_t0));
             void'($value$plusargs("VCDT1=%d", vcd_t1));
             $dumpfile(vcd_path);
-            $dumpvars(0, dut.u_fe.g_scan.u_sync);
+            $dumpvars(0, dut.u_fe);   // 注: 用共有父层（g_scan 仅扫描分支存在, EXTPH=1 编不过）
             vcd_en <= 1'b1;
             if (vcd_t1 != 0) $dumpoff;        // 窗口模式: 先关, 到点再开
         end
