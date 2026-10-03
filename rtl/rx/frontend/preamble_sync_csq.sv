@@ -31,6 +31,7 @@ module preamble_sync #(
     input  wire signed [W-1:0]     i_in,
     input  wire signed [W-1:0]     q_in,
     input  wire                    dv_in,
+    input  wire                    en = 1'b1,   // PMU 处理门控 (docs/22 §10.6 ①): 0=冻结处理; smp_cnt 照走(相位维护)
     input  wire [47:0]             ph_thresh,
     input  wire [47:0]             sfd_thresh,
     input  wire                    frame_done,
@@ -212,7 +213,9 @@ module preamble_sync #(
                 end
             end
         end else if (dv_in) begin
-            smp_cnt     <= smp_cnt + 16'd1;
+            smp_cnt     <= smp_cnt + 16'd1;   // 相位维护: 不受 en 门控 (docs/22 §9 "不可关"例外)
+            if (en) begin
+            // ↓ 以下整块受 en 门控（缩进保持原样; 唤醒门控 v1, docs/22 §10.6 ①）
             frame_start <= 1'b0;
             chip_dv     <= 1'b0;
             // 能量滑窗（定相用; 任何状态连续更新）
@@ -304,6 +307,7 @@ module preamble_sync #(
                 end
                 default: state <= ST_SCAN;
             endcase
+            end // if (en) —— 唤醒门控闭合 (docs/22 §10.6 ①)
         end
     end
 endmodule

@@ -94,10 +94,12 @@ module dual_mc_tb #(
     wire               pbuf_done;
     reg  [11:0]        pbuf_addr = 12'd0;
     reg                pbuf_clr  = 1'b0;
+    reg  [16:0]        wk_dly    = 17'd0;   // PMU 唤醒延迟（+WDLY; 驱动 dut.wake_dly）
 
     rx_dual #(.W(16), .PW(24), .SYNC_DIRECT(EXTPH != 0), .RST_EN(RSTEN != 0)) dut (
         .clk(clk), .rst_n(rst_n),
         .adc_i(i_in), .adc_q(q_in), .adc_dv(dv_in),
+        .wake_dly(wk_dly),
         .ph_thresh(ph_th), .sfd_thresh(sfd_th),
         .sfd_norm_th(norm_th),
         .ext_lock_en(ext_en), .ext_lock_phase(ext_ph), .rot_load(1'b0),
@@ -277,6 +279,60 @@ module dual_mc_tb #(
     end
     endgenerate
 
+    // —— 唤醒延迟注入（PMU 实验, 2026-10-03）: +WDLY=<L> ——
+    // 驱动 dut.wake_dly（rx_frontend 端口; docs/22 §10.6 ③）: pd_rise 后 L 拍
+    // 才给 sync 开处理门（LISTEN 冻结/时钟晚开模拟）。L=0: 现状等价。
+    // （v1 force 方案已弃：VCS 折叠共享 dv 网, force 会连带冻结 deint/pbuf 的数据流。）
+    longint unsigned wdly_arg = 0;
+    longint unsigned wonce_arg = 0;   // +WONCE=1: 只在第一帧应用 WDLY（k>20000 后清零）
+    initial begin
+        void'($value$plusargs("WDLY=%d", wdly_arg));
+        void'($value$plusargs("WONCE=%d", wonce_arg));
+        wk_dly = wdly_arg[16:0];
+    end
+
+`ifdef WTRACE_EN
+    // —— PMU 实验: sync 内部追踪（+WTRACE=<path> [WT1=<k_end>]）——
+    // 仅 Csq 版本（引用 c_e/c_sel/... 内部信号）; 编译需 +define+WTRACE_EN。
+    // 逐拍记录 c_e/c_sel/cref_cnt/state/locked_phase/detect/okcnt/ywarm + fe 侧 latch 信号。
+    string wtrace_path = "";
+    int    fd_wt = 0;
+    longint unsigned wt1 = 0;
+    initial begin
+        if ($value$plusargs("WTRACE=%s", wtrace_path)) fd_wt = $fopen(wtrace_path, "w");
+        void'($value$plusargs("WT1=%d", wt1));
+    end
+    always @(posedge clk) begin
+        if (fd_wt != 0 && dv_in && (wt1 == 0 || k <= wt1))
+            $fwrite(fd_wt, "%0d %0d %0d %0d %0d %0d %0d %0d %0d %0d %0d %0d %0d %0d %0d\n",
+                    k, dut.u_fe.g_scan.u_sync.c_e, dut.u_fe.g_scan.u_sync.c_sel,
+                    dut.u_fe.g_scan.u_sync.cref_cnt, dut.u_fe.g_scan.u_sync.state,
+                    dut.u_fe.g_scan.u_sync.locked_phase, dut.u_fe.g_scan.u_sync.detect,
+                    dut.u_fe.g_scan.u_sync.okcnt, dut.u_fe.g_scan.u_sync.ywarm,
+                    dut.u_fe.hi_cnt, dut.u_fe.latch_armed, dut.u_fe.phase_fix,
+                    dut.u_fe.g_scan.u_sync.smp_cnt, dut.u_fe.g_scan.u_sync.ebp,
+                    dut.u_fe.g_scan.u_sync.eacc[0]);
+    end
+`endif
+
+`ifdef WTRACE_EN
+    // —— PMU 实验: eacc dump（+EDUMP=<k>）: 打印 16 格点能量与跨轴对和 ——
+    longint unsigned edump_k = 0;
+    integer eei;
+    initial void'($value$plusargs("EDUMP=%d", edump_k));
+    always @(posedge clk) begin
+        if (edump_k != 0 && k == edump_k) begin
+            $display("[EDUMP] k=%0d c_e=%0d c_sel=%0d smp_cnt=%0d",
+                     k, dut.u_fe.g_scan.u_sync.c_e, dut.u_fe.g_scan.u_sync.c_sel,
+                     dut.u_fe.g_scan.u_sync.smp_cnt);
+            for (eei = 0; eei < 16; eei = eei + 1)
+                $display("[EDUMP] eacc[%0d]=%0d pair=%0d", eei,
+                         dut.u_fe.g_scan.u_sync.eacc[eei],
+                         dut.u_fe.g_scan.u_sync.eacc[eei] + dut.u_fe.g_scan.u_sync.eacc[(eei+12)&15]);
+        end
+    end
+`endif
+
     // —— 眼图 dump: +EYEDUMP=<path> +EYES=<start> +EYEE=<end>（采样级 MF 输出）——
     // 采样级不加消旋（RTL 的消旋在码片级），Python 侧用与各通道同参数的
     // 理想旋转做“矫正后”对照 —— 与 chip 级消旋数学等价（复乘与抽取可交换）。
@@ -440,6 +496,7 @@ module dual_mc_tb #(
         end
 
         for (k = 0; k < nsmp; k = k + 1) begin
+            if (wonce_arg != 0 && k == 20000) wk_dly = 17'd0;   // 一次性模式: 仅帧 0 受 WDLY
             // 运行时替换通道 B 参数（帧间时刻触发）
             if (swapb_arg != 0 && k == swapk_arg) inc_b = swapb_arg[23:0];
             // 多段替换表: +SWAPTAB（每行 k inc_a inc_b; 0=该通道不改）——上位机轮换/决策

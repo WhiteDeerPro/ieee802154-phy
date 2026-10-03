@@ -37,6 +37,7 @@ module rx_frontend #(
 ) (
     input  wire               clk,
     input  wire               rst_n,
+    input  wire [16:0]        wake_dly = 17'd0,  // PMU 唤醒延迟（端口化; docs/22 §10.6 ③）: pd_rise 后 N 拍开 sync 处理门
     // ---- ADC ----
     input  wire signed [11:0] adc_i,
     input  wire signed [11:0] adc_q,
@@ -101,6 +102,27 @@ module rx_frontend #(
             end
             wire pd_rise = pd_rst & ~pd_d;     // 帧到达沿（不受 RST_EN 门控, pbuf 也用）
             wire scan_rst = RST_EN ? pd_rise : 1'b0;
+            // —— PMU 唤醒延迟门控（唤醒门控 v1; docs/22 §10.6 ①③）——
+            //   pd_rise 后 wake_dly 拍内 sync 不处理样本（模拟 LISTEN 冻结/时钟晚开）;
+            //   en=0: 处理冻结、状态保持; smp_cnt 照走（"相位维护"例外, docs/22 §9）;
+            //   wake_dly=0: 恒开（默认, 现状等价）。
+            reg [16:0] wk_cnt;
+            reg        wk_open;
+            always @(posedge clk) begin
+                if (!rst_n) begin
+                    wk_cnt  <= 17'd0;
+                    wk_open <= 1'b1;
+                end else if (pd_rise) begin
+                    wk_cnt  <= wake_dly[16:0];
+                    wk_open <= (wake_dly == 17'd0);
+                end else if (wk_cnt > 17'd1) begin
+                    wk_cnt  <= wk_cnt - 17'd1;
+                end else if (wk_cnt == 17'd1) begin
+                    wk_cnt  <= 17'd0;
+                    wk_open <= 1'b1;
+                end
+            end
+            wire sync_en = (wake_dly == 17'd0) ? 1'b1 : wk_open;
             // —— 帧窗门控（低功耗门控 v1, docs/22）: pd_rise 开窗 FE_WIN_LEN 拍 ——
             //   窗内 chip_dv 放行; 窗外屏蔽（下游 sfd/despreader 自然停）;
             //   deinterleave 的 smp_cnt 照常走（相位不丢, 下一帧行为等价）。
@@ -133,6 +155,7 @@ module rx_frontend #(
             preamble_sync #(.W(W), .SFD_WAIT(RST_EN ? 15 : 12), .SFD_EN(1'b0)) u_sync (
                 .clk(clk), .rst_n(rst_n),
                 .i_in(mf_i), .q_in(mf_q), .dv_in(mf_dv),
+                .en(sync_en),
                 .ph_thresh(ph_thresh), .sfd_thresh(sfd_thresh),
                 .frame_done(1'b0),
                 .ext_lock_en(1'b0), .ext_lock_phase(4'd0),

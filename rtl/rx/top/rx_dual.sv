@@ -29,6 +29,7 @@ module rx_dual #(
     input  wire [47:0]        ph_thresh,
     input  wire [47:0]        sfd_thresh,
     input  wire [15:0]        sfd_norm_th = 16'd0,   // SFD 归一化门限 Q8（0=绝对）
+    input  wire [16:0]        wake_dly = 17'd0,      // PMU 唤醒延迟（透传 rx_frontend; 0=现状）
     // ---- 前导缓冲读口（I-13, 透传共享前端）----
     input  wire [11:0]         pbuf_addr = 12'd0,
     input  wire                pbuf_clr  = 1'b0,
@@ -73,6 +74,7 @@ module rx_dual #(
     rx_frontend #(.W(W), .SYNC_DIRECT(SYNC_DIRECT), .RST_EN(RST_EN)) u_fe (
         .clk(clk), .rst_n(rst_n),
         .adc_i(adc_i), .adc_q(adc_q), .adc_dv(adc_dv),
+        .wake_dly(wake_dly),
         .ph_thresh(ph_thresh), .sfd_thresh(sfd_thresh),
         .ext_lock_en(ext_lock_en), .ext_lock_phase(ext_lock_phase),
         .pbuf_addr(pbuf_addr), .pbuf_clr(pbuf_clr),
