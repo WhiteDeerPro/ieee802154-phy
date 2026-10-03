@@ -78,14 +78,8 @@ def run_policy(policy, snr_seq, rng, th8=18.0, th4=20.0):
                     conf_fail = 0
                     ttl = 0
                 elif ttl >= TTL:
-                    e = est_snr(snr, rng)
-                    if gear == 8 and e > th4:
-                        gear = 4
-                    elif e > 16.0:
-                        pass                       # 保持
-                    else:
-                        gear = 12
-                    ttl = 0
+                    gear = 12                      # 复查 = 无条件回顶（低档不能自评;
+                    ttl = 0                        # 回顶后由常规评估重新降档）
         ok = rng.random() < p_frame(snr, gear)
         if not ok:
             conf_fail += 1
