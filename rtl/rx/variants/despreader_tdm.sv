@@ -83,14 +83,17 @@ module despreader_tdm #(
     // ---------------- 时分调度（每拍 3 路; 6 拍 = 16 路） ----------------
     reg [2:0] sched;                 // 0=片到达; 1..6=调度; 7=输出
     reg       had_cdv;               // 本轮是否有片（帧间不出 sym_dv）
+    reg       is_last_sym;           // 本轮片 = 符号末片（chip_cnt==31 捕获）——仅末片轮输出
 
     always @(posedge clk) begin
         if (!rst_n) begin
-            sched   <= 3'd0;
-            had_cdv <= 1'b0;
+            sched       <= 3'd0;
+            had_cdv     <= 1'b0;
+            is_last_sym <= 1'b0;
         end else if (chip_dv) begin
-            sched   <= 3'd0;
-            had_cdv <= 1'b1;
+            sched       <= 3'd0;
+            had_cdv     <= 1'b1;
+            is_last_sym <= (chip_cnt == 6'd31);
         end else begin
             sched   <= sched + 3'd1;         // 0→7→0 循环（无片的空转轮由 had_cdv 门控输出）
             if (sched == 3'd7) had_cdv <= 1'b0;
@@ -111,7 +114,7 @@ module despreader_tdm #(
             default: base = 5'd0;
         endcase
     end
-    wire       sched_active = (sched >= 3'd1) && (sched <= 3'd6);
+    wire       sched_active = (sched >= 3'd1) && (sched <= 3'd6) && is_last_sym;
     wire       idx0_ok = sched_active;                 // base   ≤ 15
     wire       idx1_ok = sched_active && (base + 5'd1 < 5'd16);
     wire       idx2_ok = sched_active && (base + 5'd2 < 5'd16);
@@ -168,8 +171,8 @@ module despreader_tdm #(
             sym    <= 4'd0;
             sym_dv <= 1'b0;
         end else begin
-            sym_dv <= (sched == 3'd7) && had_cdv;
-            if ((sched == 3'd7) && had_cdv) sym <= best_idx;
+            sym_dv <= (sched == 3'd7) && had_cdv && is_last_sym;
+            if ((sched == 3'd7) && had_cdv && is_last_sym) sym <= best_idx;
         end
     end
 
