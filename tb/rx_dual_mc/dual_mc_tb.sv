@@ -320,24 +320,59 @@ module dual_mc_tb #(
             end
         end
     end
-    // —— 门控状态循环: 活动拍统计（+STATS=<path>; 层次引用只读）——
+    // —— 门控状态循环: 稳态分段活动统计（+STATS=<path> +FRMSEG=<frames.txt hex> +SEGLEN=<拍>）——
+    // 帧段（[帧起点, 帧起点+SEGLEN)）与空闲段分别计数 → ACTIVE/LISTEN 两稳态画像。
     string stats_path = "";
+    string frmseg_path = "";
+    longint unsigned seglen_arg = 15000;
     int    fd_sts = 0;
-    longint unsigned c_dv=0, c_mfdv=0, c_win=0, c_chipdv=0, c_pdrst=0, c_syncen=0;
-    initial if ($value$plusargs("STATS=%s", stats_path)) fd_sts = $fopen(stats_path, "w");
+    int    fr_st [0:255];
+    int    fr_n = 0;
+    int    fr_i = 0;
+    initial begin
+        void'($value$plusargs("STATS=%s", stats_path));
+        void'($value$plusargs("FRMSEG=%s", frmseg_path));
+        void'($value$plusargs("SEGLEN=%d", seglen_arg));
+        if (stats_path != "") fd_sts = $fopen(stats_path, "w");
+        if (frmseg_path != "") begin
+            int fh, v;
+            fh = $fopen(frmseg_path, "r");
+            while (fh != 0 && fr_n < 256 && $fscanf(fh, "%h", v) == 1) begin
+                fr_st[fr_n] = v;
+                fr_n = fr_n + 1;
+            end
+            if (fh != 0) $fclose(fh);
+        end
+    end
+    always @(posedge clk)
+        if (fr_n > 0 && fr_i < fr_n && k >= fr_st[fr_i] + seglen_arg) fr_i <= fr_i + 1;
+    wire in_seg = (fr_n > 0) && (fr_i < fr_n) && (k >= fr_st[fr_i]) && (k < fr_st[fr_i] + seglen_arg);
+    longint unsigned a_mf=0, a_pd=0, a_pb=0, a_cd=0, a_sy=0, a_all=0;
+    longint unsigned l_mf=0, l_pd=0, l_pb=0, l_cd=0, l_sy=0, l_all=0;
     always @(posedge clk) begin
-        if (dv_in)                                     c_dv     <= c_dv + 1;
-        if (dut.u_fe.mf_dv)                            c_mfdv   <= c_mfdv + 1;
-        if (dut.u_fe.fe_win)                           c_win    <= c_win + 1;
-        if (dut.u_fe.u_deint.chip_dv)                  c_chipdv <= c_chipdv + 1;
-        if (dut.u_fe.pd_rst)                    c_pdrst  <= c_pdrst + 1;
-        if (dut.u_fe.g_scan.sync_en && dut.u_fe.mf_dv) c_syncen <= c_syncen + 1;
+        if (in_seg) begin
+            a_all <= a_all + 1;
+            if (dut.u_fe.mf_dv)                                    a_mf <= a_mf + 1;
+            if (dut.u_fe.mf_dv && dut.u_fe.g_scan.u_pd.sample_en)  a_pd <= a_pd + 1;
+            if (dut.u_fe.g_scan.u_pbuf.wb_en)                      a_pb <= a_pb + 1;
+            if (dut.u_fe.u_deint.chip_dv)                          a_cd <= a_cd + 1;
+            if (dut.u_fe.mf_dv && dut.u_fe.g_scan.sync_en)         a_sy <= a_sy + 1;
+        end else begin
+            l_all <= l_all + 1;
+            if (dut.u_fe.mf_dv)                                    l_mf <= l_mf + 1;
+            if (dut.u_fe.mf_dv && dut.u_fe.g_scan.u_pd.sample_en)  l_pd <= l_pd + 1;
+            if (dut.u_fe.g_scan.u_pbuf.wb_en)                      l_pb <= l_pb + 1;
+            if (dut.u_fe.u_deint.chip_dv)                          l_cd <= l_cd + 1;
+            if (dut.u_fe.mf_dv && dut.u_fe.g_scan.sync_en)         l_sy <= l_sy + 1;
+        end
     end
     final begin
         if (fd_sts != 0) begin
-            $fwrite(fd_sts, "STATS k_end=%0d\n", k);
-            $fwrite(fd_sts, "STATS dv=%0d mf_dv=%0d fe_win=%0d chip_dv=%0d pd_rst=%0d sync_en_dv=%0d\n",
-                    c_dv, c_mfdv, c_win, c_chipdv, c_pdrst, c_syncen);
+            $fwrite(fd_sts, "STATS k_end=%0d seglen=%0d fr_n=%0d\n", k, seglen_arg, fr_n);
+            $fwrite(fd_sts, "STATS ACTIVE n=%0d mf=%0d pd=%0d pbuf_w=%0d chipdv=%0d sync=%0d\n",
+                    a_all, a_mf, a_pd, a_pb, a_cd, a_sy);
+            $fwrite(fd_sts, "STATS LISTEN n=%0d mf=%0d pd=%0d pbuf_w=%0d chipdv=%0d sync=%0d\n",
+                    l_all, l_mf, l_pd, l_pb, l_cd, l_sy);
             $fclose(fd_sts);
         end
     end
