@@ -13,7 +13,7 @@ if __name__ == "__main__":
     # 2) 链级: preamble_sync → despreader → rx_deframer (同一 build 目录顺序覆盖)
     report(run("rx_chain", "test_rx_chain", [
         "tb/rx_deframer/rx_chain.sv",
-        "rtl/rx/frontend/preamble_sync.sv",
+        "rtl/rx/variants/preamble_sync.sv",
         "rtl/rx/backend/despreader.sv",
         "rtl/rx/backend/rx_deframer.sv",
     ] + COMMON))

@@ -18,7 +18,7 @@
 //   衡量"相位一致性" —— 对齐对了则各 d 同相, |acc| 大; 对齐错了则乱, |acc| 小。
 //   取 mag2 最大的候选即为 p_hat。指标不需要开方也不需要除法。
 //
-// 采样结构 (与 rtl/rx/frontend/preamble_sync.sv 完全一致, 便于级联):
+// 采样结构 (与 rtl/rx/variants/preamble_sync.sv 完全一致, 便于级联):
 //   t 相对 start 计数, k0 = !t[3] (即 t mod 16 < 8);
 //   k0 拍上: 候选 ce = t[2:0] 取偶数码片 (I,Q 原值),
 //            候选 co = t[2:0]+4 取奇数码片 (-j 旋转: I'=Q, Q'=-I)。

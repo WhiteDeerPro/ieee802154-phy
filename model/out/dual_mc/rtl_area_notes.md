@@ -1879,3 +1879,25 @@ rand5 多径 / rand6 极端[60-125B, 5-10dB]。
    省存储顺带省深度。
 **口径注意**: cells ≠ 门当量（MUX/XOR/DFF 各不等价）; 深度未重定时。
 数据: `model/out/synth_stats.txt`; 脚本: `tb/rtl_lab/{synth_stats,make_yosys_shim}.py`
+
+### §64 综合数解释（36 万 vs "几万"对账）+ 变体归档（2026-10-03）
+
+**口径对账**（364,749 cells 的由来）:
+- 综合口径 = techmap 通用门**原始展开**（**无 abc 逻辑优化 / 无工艺映射**）
+  + **双通道**（despreader/sfd/rot/deframer ×2）+ 组合为主（~350K 门 + DFF ~14.8K）。
+- "几万 cell"的三个合理落点：①**DFF 口径** = 全链 ~14.8K; ②abc 优化后 ≈ 1/3–1/4 → ~10 万;
+  ③**单通道**再减半 → **数万级**——"几万" ≈ "优化后·单通道"的门当量口径。
+  两者相差一个数量级 = 口径差（未优化×双通道 vs 优化后×单通道），非错误。
+- despreader 8 万之因：32 个 17×17 平方器 + 16 路 17 位前馈 + argmax 树
+  （RTL 131 行 → 8 万门展开）；sfd 同理（64 级相关）。
+
+**多版本污染排查**: **无**——①SRC 只读现役 16 文件（filelist 主链路）; ②同名模块
+（`preamble_sync`）单次编译互斥（重定义冲突, 天然只能读一个）; ③stat 段每模块仅
+一个 `$paramod` 变体。36 万全部为 rx_dual 现役树。
+
+**变体归档**（用户提议, 已做）:
+- `preamble_sync.sv`（A16 对照）/ `preamble_sync_ref.sv`（候选）/ `preamble_sync_b8.sv`
+  （drop-in 变体）: `rtl/rx/frontend/` → **`rtl/rx/variants/`**;
+- 引用更新 9 处（6 个 tb 脚本 + `rtl/filelist.f` 注释 + `legacy/cfo_est.sv` 注释）;
+- 抽验：`build_variants.py` 重编 a16/csq（新路径）→ **官方回归 ALL PASS**（169s）。
+- 效果: frontend/ 目录 = 纯现役; 将来任何"扫目录式"综合/脚本不会误扫变体。

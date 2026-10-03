@@ -13,7 +13,7 @@ if __name__ == "__main__":
         "rtl/common/pn9_whiten.sv",
         "rtl/common/crc16_fcs.sv",
         "rtl/rx/frontend/rx_matched_filter.sv",   # 共享前端: MF
-        "rtl/rx/frontend/preamble_sync.sv",
+        "rtl/rx/variants/preamble_sync.sv",
     "rtl/rx/frontend/preamble_detect.sv",       # 共享前端: 相位恢复（扫描）
     "rtl/rx/frontend/preamble_buf.sv",          # 前导缓冲（I-13）
         "rtl/rx/frontend/deinterleave.sv",        # 共享前端: 持续去交错

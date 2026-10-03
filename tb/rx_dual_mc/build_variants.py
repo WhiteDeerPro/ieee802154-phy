@@ -26,6 +26,6 @@ def build(out, sync_rel):
     return ok
 
 
-b1 = build('simv_ps_a16', 'rtl/rx/frontend/preamble_sync.sv')
+b1 = build('simv_ps_a16', 'rtl/rx/variants/preamble_sync.sv')
 b2 = build('simv_ps_csq', 'rtl/rx/frontend/preamble_sync_csq.sv')
 sys.exit(0 if (b1 and b2) else 1)

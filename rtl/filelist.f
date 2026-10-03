@@ -22,10 +22,10 @@ rtl/rx/backend/rx_deframer.sv
 rtl/rx/backend/rx_chip_backend.sv
 rtl/rx/top/rx_dual.sv
 // 对照变体（A16 历史基线, 转正前现役；simv_ps_a16 / 影子对比用）：
-// rtl/rx/frontend/preamble_sync.sv
+// rtl/rx/variants/preamble_sync.sv
 //
 // 候选（未启用, 供共享延迟线替换实验用；启用时把 preamble_sync_csq.sv 换成它）：
-// rtl/rx/frontend/preamble_sync_ref.sv
+// rtl/rx/variants/preamble_sync_ref.sv
 //
 // [历史/参考, 勿删] —— 被 tb/cfo_corr 等历史测试引用:
 // rtl/rx/legacy/rx_top.sv

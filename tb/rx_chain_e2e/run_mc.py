@@ -42,7 +42,7 @@ SOURCES = [
     "rtl/common/pn9_whiten.sv",
     "rtl/common/crc16_fcs.sv",
     "rtl/rx/frontend/rx_matched_filter.sv",
-    "rtl/rx/frontend/preamble_sync.sv",
+    "rtl/rx/variants/preamble_sync.sv",
     "rtl/rx/backend/despreader.sv",
     "rtl/rx/backend/rx_deframer.sv",
 ]
@@ -56,7 +56,7 @@ CFO_SOURCES = [
     "rtl/rx/legacy/cfo_est.sv",
     "rtl/rx/backend/cfo_rot.sv",
     "rtl/rx/legacy/cordic_atan2.sv",
-    "rtl/rx/frontend/preamble_sync.sv",
+    "rtl/rx/variants/preamble_sync.sv",
     "rtl/rx/backend/despreader.sv",
     "rtl/rx/backend/rx_deframer.sv",
 ]
