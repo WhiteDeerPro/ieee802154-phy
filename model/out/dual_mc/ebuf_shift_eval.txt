@@ -1,0 +1,9 @@
+snr20    simv_ps_csq     : A= 60 B=  0 A|B= 60 / 60
+snr20    simv_ebuf_v0    : A= 60 B=  0 A|B= 60 / 60
+snr20    simv_ebuf_v12   : A= 60 B=  0 A|B= 60 / 60
+snr6     simv_ps_csq     : A= 15 B=  0 A|B= 15 / 60
+snr6     simv_ebuf_v0    : A= 15 B=  0 A|B= 15 / 60
+snr6     simv_ebuf_v12   : A= 15 B=  0 A|B= 15 / 60
+edge     simv_ps_csq     : A= 50 B= 44 A|B= 94 / 140
+edge     simv_ebuf_v0    : A= 50 B= 44 A|B= 94 / 140
+edge     simv_ebuf_v12   : A= 50 B= 46 A|B= 96 / 140

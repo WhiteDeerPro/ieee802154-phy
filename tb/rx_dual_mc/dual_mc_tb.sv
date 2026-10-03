@@ -36,7 +36,8 @@
 module dual_mc_tb #(
     parameter integer MAX_SMP = 1 << 25,
     parameter integer EXTPH   = 0,     // 1: 相位全外置（SYNC_DIRECT=1 + PHTAB）
-    parameter integer RSTEN   = 0      // 1: 帧到达 → 扫描重启（RST_EN=1）
+    parameter integer RSTEN   = 0,     // 1: 帧到达 → 扫描重启（RST_EN=1）
+    parameter integer VSHIFT  = 0      // 能量样本截位（-pvalue+dual_mc_tb.VSHIFT=12）
 ) ();
     // —— 时钟 (16 MHz, 自生成) ——
     reg clk = 0;
@@ -97,7 +98,7 @@ module dual_mc_tb #(
     reg  [16:0]        wk_dly    = 17'd0;   // PMU 唤醒延迟（+WDLY; 驱动 dut.wake_dly）
     reg                wclr_r    = 1'b0;    // PMU 冷启动清账（+WCLR; 驱动 dut.wake_clr）
 
-    rx_dual #(.W(16), .PW(24), .SYNC_DIRECT(EXTPH != 0), .RST_EN(RSTEN != 0)) dut (
+    rx_dual #(.W(16), .PW(24), .SYNC_DIRECT(EXTPH != 0), .RST_EN(RSTEN != 0), .VSHIFT(VSHIFT)) dut (
         .clk(clk), .rst_n(rst_n),
         .adc_i(i_in), .adc_q(q_in), .adc_dv(dv_in),
         .wake_dly(wk_dly),

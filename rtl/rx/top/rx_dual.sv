@@ -17,7 +17,8 @@ module rx_dual #(
     parameter W  = 16,                // 定点重规划 21→16 无损（notes §8；满精度可改回 21）
     parameter PW = 24,
     parameter SYNC_DIRECT = 1'b0,     // 0: 扫描取相位; 1: 相位外置（ext_lock_phase）
-    parameter RST_EN = 1'b0           // 1: 帧到达 → 扫描重启（透传 rx_frontend）
+    parameter RST_EN = 1'b0,          // 1: 帧到达 → 扫描重启（透传 rx_frontend）
+    parameter integer VSHIFT = 0      // 能量样本截位（透传; 0=现状, 12=12位）
 ) (
     input  wire               clk,
     input  wire               rst_n,
@@ -72,7 +73,7 @@ module rx_dual #(
     wire                chip_dv;
     wire                fd_a, fd_b;
 
-    rx_frontend #(.W(W), .SYNC_DIRECT(SYNC_DIRECT), .RST_EN(RST_EN)) u_fe (
+    rx_frontend #(.W(W), .SYNC_DIRECT(SYNC_DIRECT), .RST_EN(RST_EN), .VSHIFT(VSHIFT)) u_fe (
         .clk(clk), .rst_n(rst_n),
         .adc_i(adc_i), .adc_q(adc_q), .adc_dv(adc_dv),
         .wake_dly(wake_dly),

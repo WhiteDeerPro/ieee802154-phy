@@ -33,7 +33,8 @@ module rx_frontend #(
     parameter integer PH_SHIFT = 0,   // 锁定值相位修正（采样; 实测最优 off=10 vs 锁定值 8）
     parameter integer ALIGN_GATE = 1,  // 1: 网格对齐门（latch 延迟到抽取网格 0/4 拍再生效）
     parameter integer FE_WIN_LEN = 70000, // 帧窗门控长度（pd_rise 开窗; ≥最大帧 69120 + 余量）
-    parameter integer FE_WIN_DLY = 0      // 帧窗延迟开（拍）: >0 = "前 N 片不用"（受限基线实验用）
+    parameter integer FE_WIN_DLY = 0,     // 帧窗延迟开（拍）: >0 = "前 N 片不用"（受限基线实验用）
+    parameter integer VSHIFT = 0          // 能量样本截位（透传 preamble_sync; 0=现状, 12=12位）
 ) (
     input  wire               clk,
     input  wire               rst_n,
@@ -153,7 +154,7 @@ module rx_frontend #(
             // 若用原 2^12 超时会在帧内回扫→重锁→改写相位; 改由"下一帧 restart"接管。
             // 共享前端: u_sync 的 chip/frame_start 输出悬空（chip 流由 deinterleave 提供,
             // 帧定位由后端 sfd_detect 完成）→ 裁剪 SFD 窗（SFD_EN=0）; 超时/锁定逻辑保留。
-            preamble_sync #(.W(W), .SFD_WAIT(RST_EN ? 15 : 12), .SFD_EN(1'b0)) u_sync (
+            preamble_sync #(.W(W), .VSHIFT(VSHIFT), .SFD_WAIT(RST_EN ? 15 : 12), .SFD_EN(1'b0)) u_sync (
                 .clk(clk), .rst_n(rst_n),
                 .i_in(mf_i), .q_in(mf_q), .dv_in(mf_dv),
                 .en(sync_en),

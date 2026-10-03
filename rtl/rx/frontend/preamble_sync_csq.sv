@@ -24,7 +24,8 @@ module preamble_sync #(
     parameter EWIN        = 512,  // 能量窗拍数（定相用）
     parameter NCNT        = 16,   // 连续合格片数（重叠评估, ≈持久 47 片）
     parameter CREF        = 128,  // 相位刷新周期（拍）
-    parameter SFD_EN     = 1'b1  // 1: 生成 SFD 窗/frame_start（单通道）; 0: 裁剪（共享前端下输出悬空）
+    parameter SFD_EN     = 1'b1, // 1: 生成 SFD 窗/frame_start（单通道）; 0: 裁剪（共享前端下输出悬空）
+    parameter integer VSHIFT = 0   // 能量样本额外截位: 0=现状(24位); 12=12位落点
 ) (
     input  wire                    clk,
     input  wire                    rst_n,
@@ -63,9 +64,11 @@ module preamble_sync #(
     wire signed [W-1:0] v_i = i_in, v_q = q_in;
 
     // ---------------- ① 粗搜: 16 相滑窗能量（512 拍环形缓冲, 定相） ----------------
-    localparam VW = 2*W - 8;
+    localparam VW  = 2*W - 8 - VSHIFT;   // 存储位宽（ebuf/ebf; VSHIFT=0 → 24）
+    localparam VW0 = 2*W - 8;            // 使用域位宽（滑窗一致尺度）
     wire [2*W:0] v_sq = v_i*v_i + v_q*v_q;
-    wire [VW-1:0] v_sq_c = v_sq[2*W : 9];
+    wire [VW-1:0]  v_sq_s = v_sq[2*W : 9+VSHIFT];                // 存: 截位样本
+    wire [VW0-1:0] v_sq_u = (({VW0{1'b0}}) | v_sq_s) << VSHIFT;  // 用: 恢复尺度
     reg [EACC_W:0] eacc [0:15];
     reg [VW-1:0]     ebuf [0:511];
     reg [8:0]        ebp;
@@ -74,7 +77,7 @@ module preamble_sync #(
     wire             warm = (warm_cnt >= 10'd512);
     reg [15:0]       ewcnt;
     reg [3:0]        c_e;
-    wire [VW-1:0]    v_old = ebuf[ebp];
+    wire [VW0-1:0]    v_old = (({VW0{1'b0}}) | ebuf[ebp]) << VSHIFT;
     reg [3:0]        c_sel;
     reg [EACC_W:0]   emax, esum;
     integer ei;
@@ -103,7 +106,7 @@ module preamble_sync #(
     reg [4:0]           eb2p;
     // 滑窗和与计数
     reg signed [SW+5:0] Sre, Sim;
-    reg [EWB+5:0]       Ewin;
+    reg [VW0+5:0]       Ewin;
     reg [5:0]           okcnt;
     reg [5:0]           ywarm;
     reg [7:0]           cref_cnt;
@@ -115,8 +118,8 @@ module preamble_sync #(
     wire signed [SW-1:0] sre_o = sbi[sbp], sim_o = sbq[sbp];
     wire signed [SW+5:0] Sre_n = Sre + sre_n - sre_o;
     wire signed [SW+5:0] Sim_n = Sim + sim_n - sim_o;
-    wire [EWB-1:0]       e_o   = ebf[eb2p];
-    wire [EWB+5:0]       Ewin_n = Ewin + v_sq_c - e_o;   // 片能量滑窗（截位样本）
+    wire [VW0-1:0]       e_o   = (({VW0{1'b0}}) | ebf[eb2p]) << VSHIFT;
+    wire [VW0+5:0]       Ewin_n = Ewin + v_sq_u - e_o;   // 片能量滑窗（截位样本）
     wire [SW+5:0] absR = Sre_n[SW+5] ? (~Sre_n + 1'b1) : Sre_n;
     wire [SW+5:0] absI = Sim_n[SW+5] ? (~Sim_n + 1'b1) : Sim_n;
     wire [SW+6:0] mag  = {1'b0, absR} + {1'b0, absI};
@@ -196,7 +199,7 @@ module preamble_sync #(
             eb2p        <= 5'd0;
             Sre         <= {(SW+6){1'b0}};
             Sim         <= {(SW+6){1'b0}};
-            Ewin        <= {(EWB+6){1'b0}};
+            Ewin        <= {(VW0+6){1'b0}};
             okcnt       <= 6'd0;
             ywarm       <= 6'd0;
             cref_cnt    <= 8'd0;
@@ -220,9 +223,9 @@ module preamble_sync #(
             frame_start <= 1'b0;
             chip_dv     <= 1'b0;
             // 能量滑窗（定相用; 任何状态连续更新）
-            ebuf[ebp]   <= v_sq_c;
+            ebuf[ebp]   <= v_sq_s;
             ebp         <= ebp + 9'd1;
-            eacc[s_p16] <= eacc[s_p16] + v_sq_c - v_old;
+            eacc[s_p16] <= eacc[s_p16] + v_sq_u - v_old;
             if (!warm) warm_cnt <= warm_cnt + 10'd1;
             cref_cnt <= (cref_cnt == CREF[7:0] - 1'b1) ? 8'd0 : cref_cnt + 8'd1;
 
@@ -231,7 +234,7 @@ module preamble_sync #(
                 c_e     <= c_sel;
                 Sre     <= {(SW+6){1'b0}};
                 Sim     <= {(SW+6){1'b0}};
-                Ewin    <= {(EWB+6){1'b0}};
+                Ewin    <= {(VW0+6){1'b0}};
                 okcnt   <= 6'd0;
                 ywarm   <= 6'd0;
                 ybp     <= 5'd0;
@@ -251,7 +254,7 @@ module preamble_sync #(
                 sbi[sbp]  <= sre_n;
                 sbq[sbp]  <= sim_n;
                 sbp       <= sbp + 5'd1;
-                ebf[eb2p] <= v_sq_c;
+                ebf[eb2p] <= v_sq_s;
                 eb2p      <= eb2p + 5'd1;
                 Sre       <= Sre_n;
                 Sim       <= Sim_n;
