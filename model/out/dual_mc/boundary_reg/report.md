@@ -27,4 +27,4 @@
 - mp1 simv_ps_a16: FRMA 60/60（判据 ≥58） PASS
 - mp1 simv_ps_csq: FRMA 60/60（判据 ≥58） PASS
 
-**总结: ALL PASS**（耗时 171s）
+**总结: ALL PASS**（耗时 170s）

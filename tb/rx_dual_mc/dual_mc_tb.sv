@@ -320,6 +320,27 @@ module dual_mc_tb #(
             end
         end
     end
+    // —— 门控状态循环: 活动拍统计（+STATS=<path>; 层次引用只读）——
+    string stats_path = "";
+    int    fd_sts = 0;
+    longint unsigned c_dv=0, c_mfdv=0, c_win=0, c_chipdv=0, c_pdrst=0, c_syncen=0;
+    initial if ($value$plusargs("STATS=%s", stats_path)) fd_sts = $fopen(stats_path, "w");
+    always @(posedge clk) begin
+        if (dv_in)                                     c_dv     <= c_dv + 1;
+        if (dut.u_fe.mf_dv)                            c_mfdv   <= c_mfdv + 1;
+        if (dut.u_fe.fe_win)                           c_win    <= c_win + 1;
+        if (dut.u_fe.u_deint.chip_dv)                  c_chipdv <= c_chipdv + 1;
+        if (dut.u_fe.pd_rst)                    c_pdrst  <= c_pdrst + 1;
+        if (dut.u_fe.g_scan.sync_en && dut.u_fe.mf_dv) c_syncen <= c_syncen + 1;
+    end
+    final begin
+        if (fd_sts != 0) begin
+            $fwrite(fd_sts, "STATS k_end=%0d\n", k);
+            $fwrite(fd_sts, "STATS dv=%0d mf_dv=%0d fe_win=%0d chip_dv=%0d pd_rst=%0d sync_en_dv=%0d\n",
+                    c_dv, c_mfdv, c_win, c_chipdv, c_pdrst, c_syncen);
+            $fclose(fd_sts);
+        end
+    end
 `endif
 
 `ifdef WTRACE_EN
