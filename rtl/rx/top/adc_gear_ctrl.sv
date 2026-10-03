@@ -3,7 +3,8 @@
 //   ① 降档仅由 12bit（高精度）状态发起 —— 低档禁链式自降;
 //   ② 升档用失败信号（无条件可信）—— 连续 K_FAIL 帧失败 → 阶梯升档;
 //   ③ TTL 复查 = 无条件回顶 —— 低档为限时租约; 回顶后由常规评估重新降档。
-// 事件约定（与 ref 一致）: 每帧边界一个 frame_ev 脉冲，同拍携带 snr_valid/snr_est/fcs_ok。
+// 事件约定（与 ref 一致）: 每帧边界一个 frame_ev 脉冲，同拍携带 snr_valid/snr_est/fcs_ok/force_full。
+// force_full（电平, 帧边界采样）: 外部强制——覆盖自动判断, 无条件回全态并清计数。
 // gear_req: 2'b00=12bit, 2'b01=8bit, 2'b10=4bit（请求值, 切换由 ADC/上层执行）。
 `timescale 1ns/1ps
 module adc_gear_ctrl #(
@@ -18,6 +19,7 @@ module adc_gear_ctrl #(
     input  wire       snr_valid,     // 高精度评估有效（仅 gear==12 时上游应给出）
     input  wire [7:0] snr_est,       // 评估值（无符号 dB）
     input  wire       fcs_ok,        // 帧结果（失败类信号）
+    input  wire       force_full,    // 外部强制（电平, frame_ev 采样）: 覆盖自动, 无条件回全态
     output reg  [1:0] gear_req
 );
     localparam [1:0] G12 = 2'd0, G8 = 2'd1, G4 = 2'd2;
@@ -35,6 +37,11 @@ module adc_gear_ctrl #(
             fail_cnt <= 16'd0;
             ttl_cnt  <= 16'd0;
         end else if (frame_ev) begin
+            if (force_full) begin                     // 外部强制：覆盖自动判断
+                gear_req <= G12;
+                fail_cnt <= 16'd0;
+                ttl_cnt  <= 16'd0;
+            end else begin
             fail_cnt <= fail_next;                    // 失败计数无条件更新
 
             if (gear_req == G12) begin
@@ -53,6 +60,7 @@ module adc_gear_ctrl #(
                 end else begin
                     ttl_cnt <= ttl_next;
                 end
+            end
             end
         end
     end

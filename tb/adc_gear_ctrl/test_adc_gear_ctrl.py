@@ -26,17 +26,19 @@ async def reset(dut):
     dut.snr_valid.value = 0
     dut.snr_est.value = 0
     dut.fcs_ok.value = 1
+    dut.force_full.value = 0
     await FallingEdge(dut.clk)
     await FallingEdge(dut.clk)
     dut.rst_n.value = 1
     await FallingEdge(dut.clk)
 
 
-async def frame(dut, snr_valid, snr_est, fcs_ok):
+async def frame(dut, snr_valid, snr_est, fcs_ok, force=False):
     """一个帧边界事件: 低电平期置值 → 上升沿采样 → ReadOnly 读 gear_req。"""
     dut.snr_valid.value = int(bool(snr_valid))
     dut.snr_est.value = int(snr_est)
     dut.fcs_ok.value = int(bool(fcs_ok))
+    dut.force_full.value = int(bool(force))
     dut.frame_ev.value = 1
     await RisingEdge(dut.clk)
     await ReadOnly()
@@ -48,12 +50,14 @@ async def frame(dut, snr_valid, snr_est, fcs_ok):
 
 async def run_sequence(dut, events, label):
     ref = AdcGear()
-    for i, (sv, se, ok) in enumerate(events):
-        exp = ref.on_frame(snr_valid=sv, snr_est=se, fcs_ok=ok)
-        got = await frame(dut, sv, se, ok)
+    for i, e in enumerate(events):
+        sv, se, ok = e[:3]
+        force = bool(e[3]) if len(e) > 3 else False
+        exp = ref.on_frame(snr_valid=sv, snr_est=se, fcs_ok=ok, force=force)
+        got = await frame(dut, sv, se, ok, force)
         assert got == ENC[exp], (
             f"[{label}] 帧{i}: RTL gear_req={got} != ref={exp} "
-            f"(事件 sv={sv} se={se} ok={ok}; ref 内部 fail={ref.fail_cnt} ttl={ref.ttl_cnt})")
+            f"(事件 sv={sv} se={se} ok={ok} force={force}; ref 内部 fail={ref.fail_cnt} ttl={ref.ttl_cnt})")
     dut._log.info(f"{label}: {len(events)} 帧逐位一致 OK")
 
 
@@ -85,6 +89,20 @@ def scene_burst_fail(seed=2):
     return ev
 
 
+def scene_force():
+    """降档 → 外部 force 强制回全态（环境仍好也不降）→ 释放后自动重降。"""
+    ev = []
+    for _ in range(30):
+        ev.append((True, 22, True))            # 高档起步 → 自动降到 4
+    for _ in range(20):
+        ev.append((True, 22, True, True))          # force: 强制全态（覆盖自动）
+    for _ in range(30):
+        ev.append((True, 22, True))                # 释放: 自动重降
+    for _ in range(10):
+        ev.append((False, 0, True, True))          # force 带无效评估（仍强制）
+    return ev
+
+
 @cocotb.test()
 async def test_gear(dut):
     cocotb.start_soon(Clock(dut.clk, 62.5, unit="ns").start())   # 时钟仅此一次
@@ -94,3 +112,5 @@ async def test_gear(dut):
     await run_sequence(dut, scene_random(seed=7), "random")
     await reset(dut)
     await run_sequence(dut, scene_burst_fail(), "burst_fail")
+    await reset(dut)
+    await run_sequence(dut, scene_force(), "force")

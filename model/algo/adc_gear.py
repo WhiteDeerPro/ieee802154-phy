@@ -35,8 +35,18 @@ class AdcGear:
         self.fail_cnt = 0
         self.ttl_cnt = 0
 
-    def on_frame(self, snr_valid=False, snr_est=0, fcs_ok=True):
-        """帧边界事件。返回请求档位。与 RTL 逐位一致（含计数器更新时序）。"""
+    def on_frame(self, snr_valid=False, snr_est=0, fcs_ok=True, force=False):
+        """帧边界事件。返回请求档位。与 RTL 逐位一致（含计数器更新时序）。
+
+        force: 外部强制（电平, 帧边界采样）——**覆盖自动判断**：无条件回全态（12）
+               并清计数（即便基带自行评估认为可维持低档）。
+        """
+        if force:
+            self.gear = self.GEAR_12
+            self.fail_cnt = 0
+            self.ttl_cnt = 0
+            return self.gear
+
         # 失败计数无条件更新（失败类信号任何时候可信）
         self.fail_cnt = 0 if fcs_ok else self.fail_cnt + 1
 
