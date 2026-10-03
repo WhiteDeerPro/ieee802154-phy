@@ -1850,3 +1850,32 @@ rand5 多径 / rand6 极端[60-125B, 5-10dB]。
 8 位段边界**（将来段门控的自然切点）。
 
 **备用记录**: 12 位（VSHIFT=12）为激进落点（-1 帧, 数据面亦安全）; 10 位以下不可用。
+
+### §63 Yosys 无映射综合: 面积/深度总账（现役参数, 2026-10-03）
+
+**方法**: yosys 0.9; `read 全部 → hierarchy -top rx_dual → proc/opt/techmap/opt`
+（**不做工艺映射**）; `$paramod` 段 = 参数绑定后的现役配置（W=16/VSHIFT=8）;
+深度 = `ltp -noff` 最长拓扑路径（悲观上界, 模块间可比）。
+工具坑: ①`rot_lut.svh` 的 localparam 数组 pattern 老 yosys 不认 → 自动生成 shim
+（`make_yosys_shim.py`: reg 数组+initial）; ②`ltp` 打参数化模块需**通配选择器**
+（`*despreader*`）; ③stat 段序/归属受读入集合影响（±6%）——以单次 rx_dual 层次
+综合为准。
+
+**全链总账**: **364,749 cells**（含双通道; DFF ~14.8K）。
+
+**面积榜（cells） × 深度（ltp）**:
+- **despreader: 80,436 / depth 364 ← 面积+深度双料冠军**（DFF 仅 555 → 组合为主!）
+- sfd_detect: 58,692 / 272
+- preamble_detect: 38,433 / 122
+- preamble_sync（VSHIFT=8）: 18,168 / **124**
+- cfo_rot: 8,309 / 45; preamble_buf: 4,278 / 108; half_sine_fir: 3,181 / 59
+- （rx_frontend 680 / backend 4 / rx_dual 4 = 例化层自身）
+
+**两个修正**:
+1. §50 的 "sync ~100K 门当量" 过高——那是 "1bit≈5-6 门" 的换算, 且当时含 W=21
+   默认口径; 综合口径下 **despreader（80K, 组合为主）才是逻辑侧最大块**,
+   sync 现役 18K cells。
+2. **截位的副作用**: sync 深度 295（满精度）→ **124**（VSHIFT=8）——高位链变短,
+   省存储顺带省深度。
+**口径注意**: cells ≠ 门当量（MUX/XOR/DFF 各不等价）; 深度未重定时。
+数据: `model/out/synth_stats.txt`; 脚本: `tb/rtl_lab/{synth_stats,make_yosys_shim}.py`

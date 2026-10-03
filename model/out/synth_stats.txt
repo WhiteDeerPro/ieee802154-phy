@@ -1,0 +1,30 @@
+# Yosys 无映射综合（v2; 现役参数; rc=0）
+
+## stat（$paramod = 参数绑定后的现役配置）
+$paramod\cfo_rot\W=16                                        cells =     8309
+$paramod\deinterleave\W=16                                   cells =      252
+$paramod\despreader\W=12                                     cells =    80436
+$paramod\half_sine_fir\X_W=12\Y_W=16\LSB_SHIFT=5             cells =     3181
+$paramod\preamble_buf\W=16                                   cells =     4278
+$paramod\preamble_detect\W=16                                cells =    38433
+$paramod\preamble_sync\W=16\SFD_WAIT=12\SFD_EN=1'0\VSHIFT=8  cells =    18168
+$paramod\rx_chip_backend\W=16\PW=24                          cells =        4
+$paramod\rx_frontend\W=16\SYNC_DIRECT=1'0\RST_EN=1'0\VSHIFT=8 cells =      680
+$paramod\rx_matched_filter\X_W=12\Y_W=16\LSB_SHIFT=5         cells =        2
+$paramod\sfd_detect\W=16                                     cells =    58692
+crc16_fcs                                                    cells =      154
+pn9_whiten                                                   cells =      156
+rx_deframer                                                  cells =      545
+rx_dual                                                      cells =        4
+design hierarchy                                             cells =   364749
+
+## ltp -noff（最长拓扑路径 = 组合深度, 悲观上界）
+$paramod\despreader\W=12                                     depth = 364
+$paramod\sfd_detect\W=16                                     depth = 272
+$paramod\preamble_detect\W=16                                depth = 122
+$paramod\preamble_sync\W=16\SFD_WAIT=12\SFD_EN=1'0\VSHIFT=8  depth = 124
+$paramod\cfo_rot\W=16                                        depth = 45
+$paramod\preamble_buf\W=16                                   depth = 108
+$paramod\half_sine_fir\X_W=12\Y_W=16\LSB_SHIFT=5             depth = 59
+rx_deframer                                                  depth = 19
+$paramod\deinterleave\W=16                                   depth = 12
