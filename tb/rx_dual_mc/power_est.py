@@ -123,39 +123,36 @@ def main():
             print(f"  {nm:<22} {d[nm]:7.0f} 次默认 k 等效")
     dtot = sum(wm(K_DEFAULT).values())
     print(f"  允许态/ACTIVE（k=4）: {100*tot_l/dtot:.1f}%")
-    energy_table()
+    power_table()
 
 
 
 
-def energy_table():
-    """§6 稳态能量对照表（归一化: 基准 = 解析一帧 = 1.0）。
+def power_table():
+    """§6 单位时间功耗对照（平均功率）——按用户裁决: 用功率而非累计能量
+    （能量随等待时长线性放大、公平性差）。
 
-    能量 = 每拍功率 × 拍数; 帧段固定 15,000 拍（实测分段口径）;
-    等待段 = 帧周期 − 15,000。LISTEN 用允许集(k), ACTIVE 用全开(k)。
-    场景: 实验两条流 + Zigbee 真实帧率量级(100/1 帧每秒 @16MHz)。
+    基准 = ACTIVE 每拍功率 = 1.00;  P_avg = (W_act*T_act + W_lst*T_gap)/T_total。
+    帧段 T_act=15,000 拍（实测分段口径）; 场景含实验流 + Zigbee 真实帧率量级。
     """
     T_SEG = 15000
     scenes = [
-        ("listen1（gap=50k, 实验）",       64946),
-        ("snr20（gap=0.35k, 实验）",       15348),
-        ("Zigbee 100 帧/s",            160000),
-        ("Zigbee 1 帧/s",            16000000),
+        ("snr20（连续帧流）",      15348),
+        ("listen1（gap=50k）",    64946),
+        ("Zigbee 100 帧/s",      160000),
+        ("Zigbee 1 帧/s",     16000000),
     ]
-    print("\n=== 6) 稳态能量对照表（基准: 解析一帧 = 1.0）===")
+    print("\n=== 6) 单位时间功耗对照（平均功率; 基准=ACTIVE 每拍=1.00）===")
     for k in [2, 4, 8]:
-        # 与 §1-5 相同的 LISTEN 允许集口径
         w_act = sum(wm(k).values())
         w_lst = sum(wm(k, listen=True).values())
-        e_rx = w_act * T_SEG           # 基准: 收一帧能量
-        print(f"\n[k={k}] 每拍功率比: ACTIVE/LISTEN = {w_act/w_lst:.1f}x")
-        print(f"{'场景':<26}{'收一帧':>8}{'LISTEN等待':>12}{'周期总':>9}{'未门控等待':>12}")
-        for name, period in scenes:
-            t_gap = period - T_SEG
-            e_gap = w_lst * t_gap
-            e_gap_raw = w_act * t_gap
-            print(f"{name:<26}{1.0:>8.3f}{e_gap/e_rx:>12.4f}{(e_rx+e_gap)/e_rx:>9.3f}{e_gap_raw/e_rx:>12.3f}")
-    print("\n注: 单位=相对能量（基准=收一帧）; '未门控等待'=LISTEN 期不做门控时同等待时间的能量。")
+        print(f"\n[k={k}] 每拍功率比 ACTIVE/LISTEN = {w_act/w_lst:.1f}x")
+        print(f"{'场景':<24}{'门控后 P_avg':>14}{'未门控 P_avg':>14}")
+        for name, T in scenes:
+            t_a, t_l = T_SEG, T - T_SEG
+            p_g = (w_act * t_a + w_lst * t_l) / T / w_act
+            p_r = 1.0    # 未门控: 等待期也按 ACTIVE 功率
+            print(f"{name:<24}{p_g*100:>13.1f}%{p_r*100:>13.1f}%")
 
 
 if __name__ == "__main__":

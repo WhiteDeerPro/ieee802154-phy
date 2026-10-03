@@ -1357,3 +1357,17 @@ popcount）；② "相位维护"计数器是常驻翻转源（门控语义下照
 未含时钟树/漏电/工艺）。
 
 **产物**：`listen1/stats_steady.txt`、`snr20/stats_steady.txt`。
+
+## 45. ADC 位宽量化调节：RTL 实测（2026-10-03 夜）
+
+**工具**：`tb/rx_dual_mc/gen_quant_scenes.py` —— 对场景 mem 按 N-bit 再量化
+（round/floor 两口径；同满量程、LSB=2^(12-N)），重算 mem_cks、携带 meta（quant_bits）。
+
+**实测（FRMA FCS=1；基准 12bit：snr20 60/60 / snr6 15/60）**：
+
+- snr20（round）：10/8/6/5/4/**3** bit 均 **60/60**——2 bit 才断裂（23/60）；
+- snr6（round）：8/6/5/4 bit 均 ≈15–16/60（与 12bit 持平——低 SNR 下噪声主导）；
+- **口径敏感**：4 bit 截断（floor）→ **19/60**（vs 舍入 60/60）——**无偏量化是硬条件**。
+
+**结论**：① 数字链对位宽极鲁棒（工作点 3 bit 可解）——"通信 8 bit"裕量巨大；
+② 给 RF 的档位约定必须写"无偏/舍入量化"；③ 详见 docs/21 §9 增补。
