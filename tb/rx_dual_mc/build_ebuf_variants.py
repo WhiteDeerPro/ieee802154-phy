@@ -35,6 +35,7 @@ def build_if_missing(out, extra=()):
 bins = [
     ('simv_ebuf_v0',  []),                                    # VSHIFT=0（等价性基线）
     ('simv_ebuf_v12', ['-pvalue+dual_mc_tb.VSHIFT=12']),      # 12 位落点（v12）
+    ('simv_ebuf_v8',  ['-pvalue+dual_mc_tb.VSHIFT=8']),       # 16 位档（两个整 8 位段）
     ('simv_ebuf_v13', ['-pvalue+dual_mc_tb.VSHIFT=13']),      # 11 位（边界钉定）
     ('simv_ebuf_v14', ['-pvalue+dual_mc_tb.VSHIFT=14']),      # 10 位（进攻）
     ('simv_ebuf_v16', ['-pvalue+dual_mc_tb.VSHIFT=16']),      # 8 位（进攻）
