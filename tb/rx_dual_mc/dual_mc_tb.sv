@@ -295,13 +295,31 @@ module dual_mc_tb #(
 
 `ifdef WTRACE_EN
     // —— PMU 冷启动验证（2026-10-03）: +WCLR=1 ——
-    // 冻结窗结束（wk_open 上升沿）→ 单拍 wake_clr → sync 局部复位（“唤醒=复位”语义）。
+    // 冻结窗结束（wk_open 上升沿）→ 单拍 wake_clr → sync 局部复位（唤醒=复位语义）。
+    // +WCLRA=1: 对齐模式——延迟 clr 至 k%16==0（格点对齐; clr 时刻 mod16∈{5..13} 必崩、
+    //   {14..4} 好, 见 notes §43 冷启地图——对齐后落入好区）。
     // 对照: 无 WCLR 时冻结污染跨帧（延迟爆发；旧数据 wonce4=12/60）。
     longint unsigned wclr_arg = 0;
-    initial void'($value$plusargs("WCLR=%d", wclr_arg));
-    always @(posedge clk)
-        if (wclr_arg != 0) wclr_r <= $rose(dut.u_fe.g_scan.wk_open);
-        else               wclr_r <= 1'b0;
+    longint unsigned wclra_arg = 0;
+    initial begin
+        void'($value$plusargs("WCLR=%d", wclr_arg));
+        void'($value$plusargs("WCLRA=%d", wclra_arg));
+    end
+    reg wclr_pend = 1'b0;
+    always @(posedge clk) begin
+        wclr_r <= 1'b0;
+        if (wclr_arg != 0) begin
+            if (wclra_arg != 0) begin
+                if ($rose(dut.u_fe.g_scan.wk_open)) wclr_pend <= 1'b1;
+                if (wclr_pend && ((k % 16) == 0)) begin
+                    wclr_r    <= 1'b1;
+                    wclr_pend <= 1'b0;
+                end
+            end else if ($rose(dut.u_fe.g_scan.wk_open)) begin
+                wclr_r <= 1'b1;
+            end
+        end
+    end
 `endif
 
 `ifdef WTRACE_EN
