@@ -156,6 +156,24 @@ def main_misaligned():
     print('\n（预期: 需要窗口位 ≈ 有效位(3-4) + 对齐损失(att/6dB)）')
 
 
+def main_snr_width():
+    """低 SNR × 位宽扫描（chips 插点; 自适应定标每帧打满窗 = "AGC 锁总能量" 语义）。
+    检验假说: 低 SNR 时信号只占总能量一部分 → 信号占窗份额缩小 → 需要更多总位宽
+    保住"信号有效位 ≥ 3-4"。预期: 需要位宽 ≈ 3-4 + 10log10((S+N)/S)/6。"""
+    print('=== 低 SNR × 位宽（chips 插点; 自适应定标=AGC 打满窗; 80 帧/点; 误帧数）===')
+    snrs = [20.0, 8.0, 0.0, -4.0, -8.0]
+    bits = [16, 8, 6, 5, 4, 3, 2]
+    print(f'{"snr(dB)":>8}' + ''.join(f'{str(b) + "b":>7}' for b in bits) + f'{"无损":>8}')
+    for snr in snrs:
+        row = [run_point('chips', b, snr)[0] for b in bits]
+        f0, _ = run_point('chips', None, snr)
+        print(f'{snr:>8.0f}' + ''.join(f'{v:>7}' for v in row) + f'{f0:>8}')
+    print('\n（份额损失 10log10((S+N)/S): 0dB→3.0, -4dB→5.5, -8dB→8.6——预期位宽需求同向增长）')
+
+
 if __name__ == '__main__':
-    main()
-    main_misaligned()
+    if '--snr-width' in sys.argv:
+        main_snr_width()
+    else:
+        main()
+        main_misaligned()
