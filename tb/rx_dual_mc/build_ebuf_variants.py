@@ -24,7 +24,22 @@ def build(out, extra=()):
     return ok
 
 
-# ebuf 截位变体（preamble_sync VSHIFT 参数; 见 notes §57）
-b0 = build('simv_ebuf_v0')                                    # VSHIFT=0（默认, 等价性基线）
-b1 = build('simv_ebuf_v12', ['-pvalue+dual_mc_tb.VSHIFT=12'])  # VSHIFT=12（12 位落点）
-sys.exit(0 if (b0 and b1) else 1)
+def build_if_missing(out, extra=()):
+    if (R.SIM_DIR / out).exists():
+        print(f"{out}: exists, skip")
+        return True
+    return build(out, extra)
+
+
+# ebuf 截位变体（preamble_sync VSHIFT 参数; 见 notes §57/§59）
+bins = [
+    ('simv_ebuf_v0',  []),                                    # VSHIFT=0（等价性基线）
+    ('simv_ebuf_v12', ['-pvalue+dual_mc_tb.VSHIFT=12']),      # 12 位落点（v12）
+    ('simv_ebuf_v13', ['-pvalue+dual_mc_tb.VSHIFT=13']),      # 11 位（边界钉定）
+    ('simv_ebuf_v14', ['-pvalue+dual_mc_tb.VSHIFT=14']),      # 10 位（进攻）
+    ('simv_ebuf_v16', ['-pvalue+dual_mc_tb.VSHIFT=16']),      # 8 位（进攻）
+]
+ok = True
+for out, extra in bins:
+    ok &= build_if_missing(out, extra)
+sys.exit(0 if ok else 1)

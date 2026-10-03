@@ -1,0 +1,23 @@
+=== 注入边界（snr20 帧 9 × offset）===
+simv_ebuf_v12: +0:OK +1000:OK +1500:OK +3000:OK
+=== edge（140 帧, 判据 ≥92）===
+simv_ebuf_v12: A|B=96/140 PASS
+simv_ebuf_v14: A|B=51/140 FAIL
+simv_ebuf_v16: A|B=48/140 FAIL
+=== 主流量（FRMA=okA）===
+snr20  simv_ebuf_v12: A=60/60 PASS
+snr20  simv_ebuf_v14: A=60/60 PASS
+snr20  simv_ebuf_v16: A=23/60 FAIL
+snr6   simv_ebuf_v12: A=15/60 PASS
+snr6   simv_ebuf_v14: A=15/60 PASS
+snr6   simv_ebuf_v16: A=15/60 PASS
+mp1    simv_ebuf_v12: A=60/60 PASS
+mp1    simv_ebuf_v14: A=60/60 PASS
+mp1    simv_ebuf_v16: A=53/60 FAIL
+=== mixdev1（判据 FA≥126, FB≥49）===
+simv_ebuf_v12: FA=130 FB=50 PASS
+
+=== v13（11 位）补充 ===
+v13 edge A|B = 90/140 (判据 92, FAIL 差2)
+v13 snr20 A = 60/60
+v13 snr6 A = 15/60
