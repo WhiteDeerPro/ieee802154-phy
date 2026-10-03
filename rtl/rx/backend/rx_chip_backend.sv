@@ -69,12 +69,21 @@ module rx_chip_backend #(
     assign frame_done  = fd_int;      // ⚠ 曾经漏接: 端口悬空 → 多帧统计拿不到帧尾
 
     // ---------------- 解扩 ----------------
-    // 变体开关: 构建时 +define+DESP_OCT8 换装 8 边形度量解扩（0 乘法, 见
-    // rtl/rx/variants/despreader_oct8.sv）。默认（未定义）= 原版精确平方, 与既有
-    // 回归逐位等价。
+    // 变体开关（构建时选一）:
+    //   +define+DESP_OCT8_TDM → 8 边形度量 + 判决串行化（0 乘法, 面积最优）
+    //   +define+DESP_OCT8     → 8 边形度量（0 乘法）
+    //   默认（都不定义）        → 原版精确平方, 与既有回归逐位等价
     wire [3:0] sym;
     wire       sym_dv;
-`ifdef DESP_OCT8
+`ifdef DESP_OCT8_TDM
+    initial $display("[rx_chip_backend] despreader = oct8_tdm (0-mul, serialized argmax)");
+    despreader_oct8_tdm #(.W(12)) u_desp (
+        .clk(clk), .rst_n(rst_n),
+        .chip_i(rot_i[W-3:W-14]), .chip_q(rot_q[W-3:W-14]), .chip_dv(rot_dv),
+        .frame_start(fs_ch),
+        .sym(sym), .sym_dv(sym_dv)
+    );
+`elsif DESP_OCT8
     initial $display("[rx_chip_backend] despreader = oct8 (0-mul)");
     despreader_oct8 #(.W(12)) u_desp (
         .clk(clk), .rst_n(rst_n),

@@ -31,10 +31,11 @@
 |---|---|---|
 | `despreader_oct8.sv` | **候选·已验证** | 8 边形幅度检测（0 乘法，门级 −74%）；MODE=0/1/2 三档；整链五场景+200 帧零传导 |
 | `despreader_oct8_pipe.sv` | 候选·已验证 | 同上 + 四级流水判决树（参考 `ip/mcdf`）；组合路径 −65%，判决一致（延迟 3 拍） |
+| `despreader_oct8_tdm.sv` | 候选·已验证（整链） | 8 边形 + 判决串行化（4 拍×4 路）+ PN 列重排；门级 **−83%**；snr20/snr6 与 csq 零差 |
 | `despreader_tdm.sv` | 候选·已验证 | 平方/argmax 时分复用（$mul 32→6，−65%） |
 | `preamble_sync_ref/b8.sv` | 见上表 | 同步器侧候选 |
 
-换装开关：`rx_chip_backend` 的 `ifdef DESP_OCT8`（默认零变化）；
+换装开关：`rx_chip_backend` 的 `ifdef DESP_OCT8_TDM` / `DESP_OCT8`（默认零变化）；
 评估记录：`model/out/dual_mc/oct8_phase/README.md`（含相位/资源/传导数据与未来工作）。
 
 ## 关键参数与设计点
