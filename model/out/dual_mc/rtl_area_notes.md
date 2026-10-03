@@ -2211,3 +2211,30 @@ yosys cells 口径**不含“速度/驱动”维度**（数逻辑门个数）, M
 - 文档: `docs/23` 新建; `rtl/rx/variants/README.md` 新建; rtl/README、filelist.f、
   oct8_phase/README 更新。
 - **待用户确认**: 四边形 −1/200@s6 取舍（回滚 = 去 DESP_QUAD, +2.4k 零代价）。
+
+### §77 全设计乘法器审计 + 大物解剖（2026-10-04）
+
+**乘法器全搜**（`tb/rtl_lab/mul_audit.py`, RTL `$mul`, 默认参数）:
+- 真·变量乘家族（现役新基线, 单 rx_dual）: **cfo_rot×2 = 8 个 16×16**（复乘 4/件）;
+  **sfd_detect×2 = 14**（2×29×29 + 4×16×16 + 1×16×48）; **preamble_detect = 13**;
+  **preamble_sync(csq) = 9**;
+- 常数乘（综合化加法网络, 非真乘法器）: half_sine_fir 8 / awgn_gen 2 / despreader_tdm 6;
+- 变体 despreader_oct8/oct8_pipe/oct8_tdm 全 0 ✓。
+
+**sfd_detect 解剖**（58.7k/件, ×2）:
+- 每片"全窗重算"相关: 128 路 29bit 加减树/片（组合 wi/wq）→ **可滑窗化**
+  （wi += σ63·chip − σ0·s0; 整数精确等价; 预估省 ~13k/件）;
+- sfd_E = wi²+wq²: 2×29×29 乘法（八边形化候选——门限比较需"值", 需重标定）;
+- 归一化能量: 4×16×16（sq_new/sq_old; 同可八边形化）; norm_th×w_nxt 为常数乘
+  （90 = 64+16+8+2）。
+- **第一刀 = 滑窗化**（精确等价、收益最大）——待实施。
+
+**cfo_rot 结构（三角方案数据）**: 256×2×16bit LUT（8kbit; 对称可压 ~8×:
+`SIN[i+64]=COS[i]`、`cos(π−x)=−cos(x)`）+ 复乘 4×16×16/拍; 每拍一次、无迭代。
+
+**三角方案讨论**（结论）:
+- 我们的问题 = 相位→幅度（PAT）+ 一次复乘, 不是"求角度" → CORDIC/牛顿法不对路;
+- CORDIC 1bit/级 = 16 拍 > 8 拍预算; higher-radix（radix-4/8）= "一次 N bit 查表"的
+  文献形态（对"已知累加角"场景反而绕远）;
+- 可执行三线: ①LUT 对称折叠（8k→~1kbit, 纯逻辑）②3-mult 复乘（4→3 乘）
+  ③分段多项式 PAT（"乘法换 ROM"）。
