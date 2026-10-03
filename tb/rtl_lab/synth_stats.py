@@ -11,6 +11,7 @@
 """
 import re
 import subprocess
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -28,10 +29,26 @@ TARGETS = ['despreader', 'sfd_detect', 'preamble_detect', 'preamble_sync',
            'cfo_rot', 'preamble_buf', 'half_sine_fir', 'rx_deframer',
            'deinterleave']
 
+# —— despreader 变体开关（默认 base = 现役原版, 行为不变）——
+#   --desp=oct8     → variants/despreader_oct8.sv      + -DDESP_OCT8
+#   --desp=tdm      → variants/despreader_oct8_tdm.sv  + -DDESP_OCT8_TDM
+DESP = 'base'
+for _a in sys.argv[1:]:
+    if _a.startswith('--desp='):
+        DESP = _a.split('=', 1)[1]
+DEFINE = ''
+if DESP == 'oct8':
+    SRC.append('rtl/rx/variants/despreader_oct8.sv')
+    DEFINE = '-DDESP_OCT8'
+elif DESP == 'tdm':
+    SRC.append('rtl/rx/variants/despreader_oct8_tdm.sv')
+    DEFINE = '-DDESP_OCT8_TDM'
+
 
 def main():
     ltp_cmds = '; '.join(f'ltp -noff *{t}*' for t in TARGETS)
-    script = ("read_verilog -sv -I tb/rtl_lab/yosys_shim -I rtl/rx "
+    script = ("read_verilog -sv " + (DEFINE + ' ' if DEFINE else '')
+              + "-I tb/rtl_lab/yosys_shim -I rtl/rx "
               + ' '.join(SRC) + '; '
               "hierarchy -top rx_dual; proc; opt; techmap; opt; stat; " + ltp_cmds)
     r = subprocess.run(['yosys', '-p', script], cwd=ROOT,
@@ -60,7 +77,9 @@ def main():
         lines.append(row)
         print(row, flush=True)
 
-    (ROOT / 'model/out/synth_stats.txt').write_text('\n'.join(lines) + '\n')
+    out_name = 'synth_stats.txt' if DESP == 'base' else f'synth_stats_{DESP}.txt'
+    (ROOT / f'model/out/{out_name}').write_text('\n'.join(lines) + '\n')
+    print(f'[synth_stats] 变体={DESP} → model/out/{out_name}')
 
 
 if __name__ == '__main__':
