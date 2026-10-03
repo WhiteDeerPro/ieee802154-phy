@@ -29,7 +29,6 @@ import run_boundary_regression as RB      # noqa: E402
 import mc_gen                             # noqa: E402
 
 DMC = ROOT / 'model/out/dual_mc'
-OUTD = DMC / 'synth_frame'
 
 
 def main():
@@ -38,52 +37,63 @@ def main():
     ap.add_argument('--seed', type=int, default=21,
                     help='默认 21 = snr20 场景同 seed（首帧 PSDU 已知可收）')
     ap.add_argument('--snr', type=float, default=20.0)
+    ap.add_argument('--out', default='synth_frame',
+                    help='产物目录名（model/out/dual_mc/<out>）')
     args = ap.parse_args()
+    outd = DMC / args.out
 
     # ---- ① 决策码流 + ② 信道合成（同回归口径） ----
-    OUTD.mkdir(parents=True, exist_ok=True)
+    outd.mkdir(parents=True, exist_ok=True)
     meta = mc_gen.gen_point(args.snr, args.frames, 20, 8.0, args.seed,
-                            400, 600, OUTD, gap_jitter=16, cfo_list=[100e3])
+                            400, 600, outd, gap_jitter=16, cfo_list=[100e3])
     print(f"[①+②] 决策码流×{args.frames} → 合成 {meta['n_smp']} 采样  "
           f"CKS={meta['mem_cks']}  clip={meta['clip_frac']:.1e}", flush=True)
 
     # ---- ③ 真 tb 播放（RB.run: +MEM/+NSMP/+CKS/+INCA/+INCB/+PH/+NORMT） ----
-    okA, okB, fs = RB.run('synth_frame', 'simv_ps_csq', 'synth')
+    okA, okB, fs = RB.run(args.out, 'simv_ps_csq', 'synth')
     ok = okA | okB
     print(f"[③] FRMA {sorted(okA)} | FRMB {sorted(okB)} | 帧起点 {fs.tolist()}",
           flush=True)
 
-    # ---- payload 校验: 帧 0 窗内 BYTA 字节流 == 决策 PSDU ----
-    ev = DMC / 'boundary_reg' / 'ev_synth_frame_simv_ps_csq_synth.txt'
-    psdu0 = np.load(OUTD / 'frames.npz')['psdu'][0].astype(np.uint8).tobytes()
-    f0 = int(fs[0])
-    f1 = int(fs[1]) if len(fs) > 1 else 1 << 60
-    got = []
+    # ---- payload 校验: 全部帧窗内 BYTA 字节流逐字节 == 决策 PSDU ----
+    ev = DMC / 'boundary_reg' / f'ev_{args.out}_simv_ps_csq_synth.txt'
+    psdus = np.load(outd / 'frames.npz')['psdu'].astype(np.uint8)
+    got_by_frame = {f: [] for f in range(len(fs))}
     n_det = 0
     for line in open(ev):
         p = line.split()
-        if len(p) >= 3 and p[0] == 'BYTA' and f0 <= int(p[1]) < f1:
-            got.append(int(p[2]) & 0xFF)
+        if len(p) >= 3 and p[0] == 'BYTA':
+            f = int(np.searchsorted(fs, int(p[1]), 'right')) - 1
+            if 0 <= f < len(fs):
+                got_by_frame[f].append(int(p[2]) & 0xFF)
         elif p and p[0] == 'DET':
             n_det += 1
-    payload_ok = bytes(got[:len(psdu0)]) == psdu0
-    print(f"[payload] 首帧窗 BYTA {len(got)}B / 期望 {len(psdu0)}B → "
-          f"{'一致 ✓' if payload_ok else '不一致 ✗'}（DET 事件 {n_det} 个）",
-          flush=True)
-    if not payload_ok:
-        print(f"  expect={psdu0.hex()}")
-        print(f"  got   ={bytes(got[:20]).hex()}")
+    rows = []
+    payload_ok = True
+    for f in range(len(fs)):
+        exp = psdus[f].tobytes()
+        got = bytes(got_by_frame[f][:len(exp)])
+        ok_f = got == exp and len(got_by_frame[f]) == len(exp)
+        payload_ok &= ok_f
+        rows.append(f"  帧{f}: 解算 BYTA {len(got_by_frame[f])}B / 决策 PSDU "
+                    f"{len(exp)}B → {'逐字节一致 ✓' if ok_f else '不一致 ✗'}")
+        if not ok_f:
+            rows.append(f"    expect={exp.hex()}")
+            rows.append(f"    got   ={bytes(got_by_frame[f][:24]).hex()}")
+    print("[payload] 解算输出 vs 决策码流（逐帧逐字节）:", flush=True)
+    for r in rows:
+        print(r, flush=True)
+    print(f"  （DET 事件 {n_det} 个）", flush=True)
 
-    passed = 0 in ok and payload_ok
+    passed = ok == set(range(args.frames)) and payload_ok
     rep = [f"# synth_frame 报告（RX 全程三段式）", "",
            f"- ①决策码流: seed={args.seed}, {args.frames} 帧 × PSDU 20B",
            f"- ②合成: n_smp={meta['n_smp']}, CKS={meta['mem_cks']}, "
            f"clip_frac={meta['clip_frac']:.1e}",
            f"- ③接入: simv_ps_csq（双路）; FRMA={sorted(okA)} FRMB={sorted(okB)}",
-           f"- payload: BYTA {len(got)}B vs PSDU {len(psdu0)}B "
-           f"{'一致' if payload_ok else '不一致'}",
+           "- payload（解算 BYTA vs 决策 PSDU, 逐帧逐字节）:"] + rows + [
            f"- **{'PASS' if passed else 'FAIL'}**"]
-    (OUTD / 'report.md').write_text("\n".join(rep))
+    (outd / 'report.md').write_text("\n".join(rep))
     print(f"[总判] {'PASS' if passed else 'FAIL'}", flush=True)
     sys.exit(0 if passed else 1)
 
