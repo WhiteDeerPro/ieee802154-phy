@@ -2039,3 +2039,28 @@ cocotb 台 sfd_E≈9.2–9.7e9、无帧（复位时序已对齐 16 拍+negedge �
   FRMA 60/60 fcs=1。
 证据等级: 不再依赖 FCS 间接背书，解算字节流与决策码流**直接全对比对**。
 （`--out` 参数: 60 帧产物在 `synth_frame_60f/`；mem.bin 3.7MB 可一键重建，不入库。）
+
+### §70 despreader 8 边形变体（0 乘法）构造 + 对照验证（2026-10-04）
+
+**动机**: 拒绝 32 个 17×17 平方器（非相干能量检测 |s|²=I²+Q²）。资料线：
+alpha-max-beta-min（Lyons DSP §13.2; 15/16,15/32 档 max 误差 6.25%）+ max*算子（Log-MAP
+LUT 系，与 log 域合成同构）+ Mitchell 对数近似 + ETRI 2008 time-multiplexed correlator 先例。
+
+**构造**: `rtl/rx/variants/despreader_oct8.sv`
+- |s| ≈ α·max(|I|,|Q|) + β·min(|I|,|Q|)；系数用"稀疏移位项"实现（同 ip/FPU_PROJECT
+  fpu_recip_seed_lut 的 signed-digit 斜率风格）: α = 15/16 = 1 − 2^-4, β = 15/32 = 2^-1 − 2^-5;
+- MODE=1 默认 / MODE=0 (1, 1/2); 全链 = 移位 + 加减 + 比较;
+- 时序与原版逐拍一致（组合前馈、末片当拍 argmax、frame_start 语义）。
+
+**验证**（tb/despreader_oct8, cocotb 双路并排, 2/2 PASS）:
+- 无噪 12 符号: 判决序列与原版**完全一致**;
+- 带噪梯度 σ=24/56/96: 错误数 ref=0/0/6, oct=0/0/6——**错误集相同, 差异 0**。
+
+**面积/机制**（yosys 0.9）:
+- RTL 级: `$mul` **32 → 0**（只剩 $add/$sub/$shr/$ge/$mux）;
+- 门级 synth: cells **77,833 → 20,191（−74%）**——落在 §66 估计（−75~80%）内;
+- 代价: $add 49→81 / $sub 33→65（每路多两三个加/减）——与省下的乘法器阵列不同量级。
+
+**待办**: ①场景级换装（rx_chip_backend 替换 + snr20/mixdev 回归, 判据复用）;
+②与 TDM 版关系: TDM 保留精确平方（−65%）、oct8 0 乘法（−74%）, 可二选一或组合;
+③若需更准: 16 边形 / LUT 分段（base+slope 结构已有 FPU 参考）。

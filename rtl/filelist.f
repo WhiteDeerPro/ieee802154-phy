@@ -27,6 +27,13 @@ rtl/rx/top/rx_dual.sv
 // 候选（未启用, 供共享延迟线替换实验用；启用时把 preamble_sync_csq.sv 换成它）：
 // rtl/rx/variants/preamble_sync_ref.sv
 //
+// 候选（未启用）: rtl/rx/variants/despreader_oct8.sv —— 8 边形幅度检测 despreader
+//   （0 乘法: $mul 32→0; 门级 cells 77.8k→20.2k, -74%; 对照 tb/despreader_oct8
+//    与原版判决一致(无噪/带噪 0 差异)。换装: 替换 backend/despreader.sv——接口/时序逐拍一致）
+//
+// 候选（未启用）: rtl/rx/variants/despreader_tdm.sv —— 平方/argmax 时分复用
+//   （$mul 32→6, cells -65%; 对照 tb/despreader_tdm 判决逐符号一致）
+//
 // [历史/参考, 勿删] —— 被 tb/cfo_corr 等历史测试引用:
 // rtl/rx/legacy/rx_top.sv
 // rtl/rx/legacy/rx_backend.sv
