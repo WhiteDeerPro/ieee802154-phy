@@ -1,0 +1,19 @@
+=== 诊断: snr-1dB（错帧数/60）===
+方案           static    dyn24
+ideal             1       40
+fixed4            1       56
+bfp4              0       40
+bfp8              1       40
+
+=== 诊断: snr+10dB（错帧数/60）===
+方案           static    dyn24
+ideal             0       37
+fixed4            0       48
+bfp4              0       37
+bfp8              0       37
+
+
+补充: fixed12 snr=-1.0 dyn24 -> 40/60
+补充: fixed8 snr=-1.0 dyn24 -> 40/60
+补充: fixed12 snr=10.0 dyn24 -> 37/60
+补充: fixed8 snr=10.0 dyn24 -> 37/60
