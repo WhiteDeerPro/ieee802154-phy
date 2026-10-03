@@ -89,5 +89,73 @@ def main():
         print()
 
 
+
+
+def probe_m(where='chips', snr_db=-1.0, seed=99):
+    """量出信号在插点处的典型满幅 M（作为"AGC 锁定的窗口"）。"""
+    rng = np.random.default_rng(seed)
+    payload = bytes(rng.integers(0, 256, size=20).tolist())
+    rx = [chains.stage_matched_filter(), chains.stage_sync('honest'),
+          chains.stage_sample_chips(), chains.stage_despread(), chains.stage_deframe()]
+    c = chains.Chain(name='probe')
+    c.then_tx(*chains.tx_stages())
+    c.then_channel(chains.awgn(snr_db, rng))
+    c.then_rx(*rx)
+    sig = c.run(payload=payload)
+    x = sig.meta['mf'] if where == 'mf' else sig.rx_chips
+    return float(np.abs(x).max())
+
+
+def run_point_misaligned(where, bits, att_db, snr_db, m_ref, n_frames=N_FRAMES, seed=0):
+    """AGC 未对齐模拟（修正量纲）: 窗口固定为 M（AGC 满幅），信号只占 1/att 窗
+    ——即按 fs = M·10^(att/20) 量化（信号相对窗口衰减 att dB ≈ 损失 att/6 个有效位）。"""
+    rng = np.random.default_rng(seed)
+    fs = m_ref * (10.0 ** (att_db / 20.0))
+    fails = 0
+    for _ in range(n_frames):
+        payload = bytes(rng.integers(0, 256, size=20).tolist())
+        rx = [chains.stage_matched_filter()]
+        def apply(sig, _fs=fs, _b=bits, _w=where):
+            x = sig.meta['mf'] if _w == 'mf' else sig.rx_chips
+            q = q_c(x, _b, _fs)             # 固定窗口（AGC 满幅）
+            if _w == 'mf':
+                sig.meta['mf'] = q
+            else:
+                sig.rx_chips = q
+        apply.__name__ = f'misalign[{where}]({bits}b,{att_db}dB)'
+        if where == 'mf':
+            rx.append(apply)
+        rx.append(chains.stage_sync('honest'))
+        rx.append(chains.stage_sample_chips())
+        if where == 'chips':
+            rx.append(apply)
+        rx.append(chains.stage_despread())
+        rx.append(chains.stage_deframe())
+        c = chains.Chain(name='misalign')
+        c.then_tx(*chains.tx_stages())
+        c.then_channel(chains.awgn(snr_db, rng))
+        c.then_rx(*rx)
+        sig = c.run(payload=payload)
+        n_err, _ = measure.frame_bit_errors(sig)
+        if n_err > 0:
+            fails += 1
+    return fails
+
+
+def main_misaligned():
+    print('=== AGC 未对齐验证: 信号占窗不足时的"需要窗口位"（码片 SNR=-1dB, 80 帧/点）===')
+    print('（att = 信号相对满窗的衰减; 同列: 误帧数/80——固定满窗量化）\n')
+    atts = [0.0, 6.0, 12.0, 18.0]
+    bits = [16, 8, 6, 5, 4]
+    print(f'{"att(dB)":>8}' + ''.join(f'{str(b)+"b":>8}' for b in bits))
+    m_chips = probe_m('chips')
+    print(f'（窗口参考: 该插点典型满幅 M = {m_chips:.0f}）\n')
+    for att in atts:
+        row = [str(run_point_misaligned('chips', b, att, -1.0, m_chips)) for b in bits]
+        print(f'{att:>8.0f}' + ''.join(f'{v:>8}' for v in row))
+    print('\n（预期: 需要窗口位 ≈ 有效位(3-4) + 对齐损失(att/6dB)）')
+
+
 if __name__ == '__main__':
     main()
+    main_misaligned()
