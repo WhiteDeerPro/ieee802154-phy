@@ -19,7 +19,7 @@
 module despreader_oct8 #(
     parameter W = 12,              // 码片软值位宽
     parameter ACC_W = W + 5,       // 相关累加位宽 (32×|x|)
-    parameter MODE = 1             // 系数档: 0=(1,1/2); 1=(15/16,15/32)
+    parameter MODE = 1             // 系数档: 0=(1,1/2) 8边形; 1=(15/16,15/32) 8边形; 2=(1,0) 四边形
 ) (
     input  wire                      clk,
     input  wire                      rst_n,
@@ -107,6 +107,9 @@ module despreader_oct8 #(
             assign amin[gi] = (ai[gi] >= aq[gi]) ? aq[gi] : ai[gi];
             if (MODE == 0) begin : g_m0
                 assign met[gi] = amax[gi] + (amin[gi] >> 1);
+            end else if (MODE == 2) begin : g_m2
+                // 四边形式（最粗档）: |s| ≈ max(|I|,|Q|) —— 0 移位 0 加法
+                assign met[gi] = amax[gi];
             end else begin : g_m1
                 // 15/16·a + 15/32·b  =  a − a/16 + b/2 − b/32
                 assign met[gi] = amax[gi] - (amax[gi] >> 4)

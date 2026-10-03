@@ -30,6 +30,11 @@ WORK = BUILD / 'stress'
 C = phy.CHIP
 
 
+def quad_metric(S):
+    """四边形: max(|I|,|Q|)（MODE=2）。"""
+    return np.maximum(np.abs(S.real), np.abs(S.imag))
+
+
 def oct8_metric(S):
     """与 RTL 完全一致的整数移位实现: 15/16·max + 15/32·min。"""
     a = np.abs(S.real)
@@ -64,10 +69,14 @@ def main():
     S = z @ C.T
     dref = (S.real ** 2 + S.imag ** 2).argmax(1)
     doct = oct8_metric(S).argmax(1)
+    dqua = quad_metric(S).argmax(1)
     exp_ref = int((dref != d).sum())
     exp_oct = int((doct != d).sum())
     exp_diff = int((doct != dref).sum())
-    print(f"[模型预期] N={args.nsym} ref_err={exp_ref} oct_err={exp_oct} diff={exp_diff}")
+    exp_qua = int((dqua != d).sum())
+    exp_dqr = int((dqua != dref).sum())
+    print(f"[模型预期] N={args.nsym} ref_err={exp_ref} oct_err={exp_oct} diff={exp_diff} "
+          f"quad_err={exp_qua} diff_qref={exp_dqr}")
 
     # ---- ① 落盘 ----
     packed = ((ri & 0xFFF).astype(np.uint32) | ((rq & 0xFFF).astype(np.uint32) << 12))
@@ -75,7 +84,8 @@ def main():
     (WORK / 'gt.hex').write_text("\n".join(f"{x:x}" for x in d) + "\n")
     (WORK / 'meta.json').write_text(json.dumps(dict(
         nsym=args.nsym, snr=args.snr, phi=args.phi, amp=args.amp, seed=args.seed,
-        exp_ref=exp_ref, exp_oct=exp_oct, exp_diff=exp_diff), indent=2))
+        exp_ref=exp_ref, exp_oct=exp_oct, exp_diff=exp_diff,
+        exp_quad=exp_qua, exp_diff_qref=exp_dqr), indent=2))
 
     if args.skip_run:
         return
@@ -104,10 +114,10 @@ def main():
     assert r.returncode == 0, r.stderr[-1200:]
 
     # ---- ④ 解析 + 比对 ----
-    m = re.search(r"stress done: N=(\d+) ref_err=(\d+) oct_err=(\d+) diff=(\d+)", r.stdout)
+    m = re.search(r"stress done: N=(\d+) ref_err=(\d+) oct_err=(\d+) diff=(\d+) quad_err=(\d+) diff_qref=(\d+)", r.stdout)
     assert m, r.stdout[-2000:]
     got = tuple(int(x) for x in m.groups()[1:])
-    exp = (exp_ref, exp_oct, exp_diff)
+    exp = (exp_ref, exp_oct, exp_diff, exp_qua, exp_dqr)
     print(f"[比对] RTL={got} 模型={exp}")
     assert got == exp, f'RTL 与模型不一致: RTL={got} vs 模型={exp}'
     print(f"=== 压力测试 PASS: N={args.nsym} 符号, RTL 统计与模型逐项完全一致 ===")

@@ -23,8 +23,8 @@ module stress_tb;
     reg signed [11:0] chip_i, chip_q;
     reg               chip_dv, frame_start;
 
-    wire [3:0] sym_ref,  sym_oct;
-    wire       sym_dv_ref, sym_dv_oct;
+    wire [3:0] sym_ref,  sym_oct,  sym_quad;
+    wire       sym_dv_ref, sym_dv_oct, sym_dv_quad;
 
     despreader u_ref (
         .clk(clk), .rst_n(rst_n),
@@ -37,6 +37,12 @@ module stress_tb;
         .chip_i(chip_i), .chip_q(chip_q), .chip_dv(chip_dv),
         .frame_start(frame_start),
         .sym(sym_oct), .sym_dv(sym_dv_oct)
+    );
+    despreader_oct8 #(.W(12), .MODE(2)) u_quad (
+        .clk(clk), .rst_n(rst_n),
+        .chip_i(chip_i), .chip_q(chip_q), .chip_dv(chip_dv),
+        .frame_start(frame_start),
+        .sym(sym_quad), .sym_dv(sym_dv_quad)
     );
 
     integer n_smp, n_sym;
@@ -70,6 +76,7 @@ module stress_tb;
 
     // —— 统计（判决拍比对）——
     integer j = 0, ref_err = 0, oct_err = 0, diff_cnt = 0;
+    integer quad_err = 0, diff_qref = 0;
     integer guard = 0;
     integer ref_dv_cnt = 0, oct_dv_cnt = 0;
     reg ref_dv_d = 0, oct_dv_d = 0;
@@ -125,17 +132,19 @@ module stress_tb;
             if (sym_dv_oct && !oct_dv_d) oct_dv_cnt = oct_dv_cnt + 1;
             ref_dv_d = sym_dv_ref;
             oct_dv_d = sym_dv_oct;
-            if (sym_dv_ref && sym_dv_oct && j < n_sym) begin
+            if (sym_dv_ref && sym_dv_oct && sym_dv_quad && j < n_sym) begin
                 if (sym_ref !== gt[j]) ref_err = ref_err + 1;
                 if (sym_oct !== gt[j]) oct_err = oct_err + 1;
+                if (sym_quad !== gt[j]) quad_err = quad_err + 1;
                 if (sym_oct !== sym_ref) diff_cnt = diff_cnt + 1;
+                if (sym_quad !== sym_ref) diff_qref = diff_qref + 1;
                 j = j + 1;
                 if (j % 25000 == 0)
                     $display("[stress] %0d/%0d: ref_err=%0d oct_err=%0d diff=%0d",
                              j, n_sym, ref_err, oct_err, diff_cnt);
                 if (j == n_sym) begin
-                    $display("=== stress done: N=%0d ref_err=%0d oct_err=%0d diff=%0d ===",
-                             n_sym, ref_err, oct_err, diff_cnt);
+                    $display("=== stress done: N=%0d ref_err=%0d oct_err=%0d diff=%0d quad_err=%0d diff_qref=%0d ===",
+                             n_sym, ref_err, oct_err, diff_cnt, quad_err, diff_qref);
                     $finish;
                 end
             end
