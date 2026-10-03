@@ -13,13 +13,13 @@ module cmp_top (
     output wire [3:0]         sym_tdm,
     output wire               sym_dv_tdm
 );
-    despreader_oct8 u_ref (
+    despreader_oct8 #(.W(12), .MODE(2)) u_ref (
         .clk(clk), .rst_n(rst_n),
         .chip_i(chip_i), .chip_q(chip_q), .chip_dv(chip_dv),
         .frame_start(frame_start),
         .sym(sym_ref), .sym_dv(sym_dv_ref)
     );
-    despreader_oct8_tdm u_tdm (
+    despreader_oct8_tdm #(.W(12), .MODE(2)) u_tdm (
         .clk(clk), .rst_n(rst_n),
         .chip_i(chip_i), .chip_q(chip_q), .chip_dv(chip_dv),
         .frame_start(frame_start),

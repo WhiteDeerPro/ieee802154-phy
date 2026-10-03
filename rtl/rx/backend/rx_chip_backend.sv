@@ -76,8 +76,14 @@ module rx_chip_backend #(
     wire [3:0] sym;
     wire       sym_dv;
 `ifdef DESP_OCT8_TDM
-    initial $display("[rx_chip_backend] despreader = oct8_tdm (0-mul, serialized argmax)");
-    despreader_oct8_tdm #(.W(12)) u_desp (
+`ifdef DESP_QUAD
+    localparam integer DESP_MODE = 2;      // 四边形 max(|I|,|Q|)
+`else
+    localparam integer DESP_MODE = 1;      // 8 边形 15/16, 15/32
+`endif
+    initial $display("[rx_chip_backend] despreader = oct8_tdm MODE=%0d (0-mul, serialized argmax)",
+                     DESP_MODE);
+    despreader_oct8_tdm #(.W(12), .MODE(DESP_MODE)) u_desp (
         .clk(clk), .rst_n(rst_n),
         .chip_i(rot_i[W-3:W-14]), .chip_q(rot_q[W-3:W-14]), .chip_dv(rot_dv),
         .frame_start(fs_ch),

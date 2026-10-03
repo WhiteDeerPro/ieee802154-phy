@@ -5,6 +5,8 @@
 //
 // [现行主链路] —— rx_dual（共享前端 + 双通道执行段），定点参考配置 W=16
 //   同步器现役 = Csq（I-18 转正, v1.2）；A16 保留为对照变体（见下）
+//   despreader 现役 = variants/despreader_oct8_tdm.sv（构建宏 +DESP_OCT8_TDM +DESP_QUAD；
+//   2026-10-04 基线切换, 见 docs/23）；无宏时例化本文件中的 backend/despreader.sv（旧基线, 逐位等价）
 rtl/common/chip_lut.sv
 rtl/common/half_sine_fir.sv
 rtl/common/pn9_whiten.sv
@@ -17,7 +19,8 @@ rtl/rx/frontend/deinterleave.sv
 rtl/rx/backend/cfo_rot.sv
 rtl/rx/frontend/rx_frontend.sv
 rtl/rx/backend/sfd_detect.sv
-rtl/rx/backend/despreader.sv
+rtl/rx/backend/despreader.sv                         // 旧基线（无宏时例化）
+rtl/rx/variants/despreader_oct8_tdm.sv               // 现役（DESP_OCT8_TDM 宏时例化; +DESP_QUAD=四边形档）
 rtl/rx/backend/rx_deframer.sv
 rtl/rx/backend/rx_chip_backend.sv
 rtl/rx/top/rx_dual.sv
@@ -27,12 +30,10 @@ rtl/rx/top/rx_dual.sv
 // 候选（未启用, 供共享延迟线替换实验用；启用时把 preamble_sync_csq.sv 换成它）：
 // rtl/rx/variants/preamble_sync_ref.sv
 //
-// 候选（未启用）: rtl/rx/variants/despreader_oct8.sv —— 8 边形幅度检测 despreader
-//   （0 乘法: $mul 32→0; 门级 cells 77.8k→20.2k, -74%; 对照 tb/despreader_oct8
-//    与原版判决一致(无噪/带噪 0 差异)。换装: 替换 backend/despreader.sv——接口/时序逐拍一致）
-//
-// 候选（未启用）: rtl/rx/variants/despreader_tdm.sv —— 平方/argmax 时分复用
-//   （$mul 32→6, cells -65%; 对照 tb/despreader_tdm 判决逐符号一致）
+// 候选（未启用）: rtl/rx/variants/despreader_oct8.sv —— 8 边形幅度检测（0 乘法; 门级 -74%;
+//   整链零传导; MODE=1 为"零代价"档——去 DESP_QUAD 的 TDM 构建即用此度量）
+// 候选（未启用）: rtl/rx/variants/despreader_oct8_pipe.sv —— 四级流水判决树（组合路径 -65%）
+// 候选（未启用）: rtl/rx/variants/despreader_tdm.sv —— 平方/argmax 时分复用（旧版, $mul 32→6）
 //
 // [历史/参考, 勿删] —— 被 tb/cfo_corr 等历史测试引用:
 // rtl/rx/legacy/rx_top.sv
