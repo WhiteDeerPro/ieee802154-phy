@@ -1,18 +1,18 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""power_est.py —— 无时钟树盲估：两项模型 + k 区间敏感性（排序保真检验）。
+"""power_est.py v2 —— 无时钟树盲估：两项模型 + "无大反转"检查。
 
 模型（每模块）:
     W_i = (cells_i - dff_i) * alpha_dat_i + k * dff_i * alpha_clk_i
   - alpha_dat: 数据活动节拍（STATS 实测口径, notes §44）
   - alpha_clk: 时钟门控状态（ACTIVE=1; LISTEN 不在允许集 => 整项归零）
   - k: 每个 dff 的等效活动成本（时钟树+翻转），单位=每 cell 组合活动。
-       推荐物理区间 [2,8]（时钟树占动态 20-40% 的典型域）；[1,16] 作极端透明扫描。
+       推荐物理区间 [2,8]；[1,16] 整数全扫作透明性检验。
 
-承诺（无需时钟树）: 不追求绝对值; 要求 —— 在 k 区间内:
-  · "A >> B"（>=5x）的排序不翻转;
-  · 翻转只允许出现在"接近平局"（<=3x）的模块对。
-边界（如实）: 绝对值可能与真实含时钟树报告差数倍；模块排序由本表承担，绝对数不承诺。
+承诺（v2, 按用户裁决修订）:
+  · 红线: 禁止"大反转" —— 不存在 k1,k2 使 W_A/W_B >= 5 (k1) 且 W_B > W_A (k2);
+  · 接近模块允许"排不出顺序"（排名带重叠 => 标注近似, 不给定序）;
+  · 绝对数值不承诺（时钟树/工艺/PVT 未含）。
 """
 MODULES = [
     # (name, cells, dff, alpha_dat, 数据来源/备注)
@@ -28,95 +28,101 @@ MODULES = [
     ("pn9/crc16/halfsine",  185,   22, 0.125, "108/40/37 cells"),
     ("顶层胶合",            229,   30, 0.50,  "13,917 残余(粗估)"),
 ]
-K_MAIN = [2, 4, 8]        # 推荐物理区间
-K_EXTREME = [1, 16]       # 极端透明扫描
+K_KS = list(range(1, 17))     # 全整数扫描
+K_MAIN = [2, 3, 4, 5, 6, 7, 8]
 K_DEFAULT = 4
-RATIO_BIG = 5.0
-RATIO_TIE = 3.0
-ALLOW = {"rx_matched_filter", "preamble_detect"}   # LISTEN 唯一允许集
+REVERSAL_BIG = 5.0            # 红线: >=5x 的一侧 与 反向共存 => 大反转
+COMMIT_MIN = 3.0              # "可承诺"阈值: 任意 k 下 >=3x
+ALLOW = {"rx_matched_filter", "preamble_detect"}
 
 
 def w_of(cells, dff, a_dat, k, a_clk=1.0):
     return (cells - dff) * a_dat + k * dff * a_clk
 
 
-def rank(k, listen=False, a_dat_override=None):
-    rows = []
+def wm(k, listen=False):
+    out = {}
     for name, cells, dff, a_dat, _ in MODULES:
-        if listen and name not in ALLOW:
-            rows.append((name, 0.0))
-            continue
-        ad = a_dat if a_dat_override is None else a_dat_override.get(name, a_dat)
-        rows.append((name, w_of(cells, dff, ad, k)))
-    return sorted(rows, key=lambda r: -r[1])
-
-
-def flips(klist, listen=False, a_dat_override=None):
-    ranks = {k: dict(rank(k, listen, a_dat_override)) for k in klist}
-    out = []
-    names = [m[0] for m in MODULES]
-    for i in range(len(names)):
-        for j in range(i + 1, len(names)):
-            ni, nj = names[i], names[j]
-            gt = [1 if ranks[k][ni] > ranks[k][nj] else 0 for k in klist]
-            if len(set(gt)) > 1:
-                rr = []
-                for k in klist:
-                    hi, lo = max(ranks[k][ni], ranks[k][nj]), max(min(ranks[k][ni], ranks[k][nj]), 1e-9)
-                    rr.append(hi / lo)
-                out.append((ni, nj, min(rr), max(rr)))
+        out[name] = 0.0 if (listen and name not in ALLOW) else w_of(cells, dff, a_dat, k)
     return out
 
 
+def rank_at(k, listen=False):
+    d = wm(k, listen)
+    return sorted(d, key=lambda n: -d[n]), d
+
+
 def main():
-    print("=== 两项模型盲估：k 区间排序表（ACTIVE）===\n")
-    ranks = {k: rank(k) for k in K_MAIN + K_EXTREME}
-    names = [n for n, _ in ranks[K_DEFAULT]]
-    hdr = "  ".join(f"k={k}" + ("*" if k in K_MAIN else "") for k in [1, 2, 4, 8, 16])
-    print(f"{'模块':<22} {hdr}")
+    names = [m[0] for m in MODULES]
+
+    print("=== 1) 大反转检查（红线: 存在 k1,k2 使 A/B>=5x 且 B/A>=5x —— 两方向都大） ===")
+    big, wobble = [], []
+    for i in range(len(names)):
+        for j in range(i + 1, len(names)):
+            A, B = names[i], names[j]
+            ab = [wm(k)[A] / max(wm(k)[B], 1e-9) for k in K_KS]
+            ba = [1.0 / max(r, 1e-9) for r in ab]
+            mab, mba = max(ab), max(ba)
+            crossed = (min(ab) < 1.0) and (max(ab) > 1.0)
+            if mab >= REVERSAL_BIG and mba >= REVERSAL_BIG:
+                big.append((A, B, mab, mba))
+            elif crossed and (mab >= REVERSAL_BIG or mba >= REVERSAL_BIG):
+                wobble.append((A, B, mab, mba))
+    print("  [红线] 双方向均 >=5x:", "无 ✓" if not big else big)
+    print("  [摆动] 单侧 >=5x 且曾跨方向（非红线, 标注幅度）:")
+    for A, B, mab, mba in wobble:
+        tag = "反向平局级（不构成大反转）" if min(mab, mba) < 1.5 else "注意"
+        print(f"    {A} <-> {B}: {A}/{B} 最高 {mab:.2f}x / {B}/{A} 最高 {mba:.2f}x —— {tag}")
+    if not wobble:
+        print("    无")
+    # sync 的倍率边界展示
+    rs = [wm(k)["preamble_sync(Csq)"] / max(wm(k)[n], 1e-9) for k in K_KS
+          for n in names if n != "preamble_sync(Csq)"]
+    print(f"  （参考: sync 对其余的最小倍率 = {min(rs):.1f}x —— 最大项地位全区间稳定）")
+
+    print("\n=== 2) 排名带（best..worst across k; 重叠 = 近似, 不给定序） ===")
+    print(f"{'模块':<22} {'k∈[2,8]':>10}   {'k∈[1,16]':>10}")
     for nm in names:
-        vals = []
-        for k in [1, 2, 4, 8, 16]:
-            d = dict(rank(k))
-            vals.append(f"{d[nm]:8.0f}")
-        print(f"{nm:<22} " + " ".join(vals))
-    print("  （* = 推荐物理区间 [2,8]）")
+        def band(ks):
+            ranks = []
+            for k in ks:
+                order, _ = rank_at(k)
+                ranks.append(order.index(nm) + 1)
+            return min(ranks), max(ranks)
+        b1, b2 = band(K_MAIN), band(K_KS)
+        print(f"{nm:<22} {b1[0]:>4}..{b1[1]:<4}   {b2[0]:>4}..{b2[1]:<4}")
 
-    print("\n=== 排序翻转检测 ===")
-    print("[推荐区间 k∈2..8]")
-    fs = flips(K_MAIN)
-    if not fs:
-        print("  无翻转 ✓")
-    for ni, nj, wmin, wmax in fs:
-        sev = "!! 数量级对翻转" if wmax >= RATIO_BIG else ("（接近平局, 允许）" if wmax < RATIO_TIE else "（中等, 注意）")
-        print(f"  {ni} <-> {nj}: 相对比 [{wmin:.1f}x, {wmax:.1f}x] {sev}")
-    print("[极端扫描 k∈1..16]")
-    fs = flips(K_MAIN + K_EXTREME)
-    if not fs:
-        print("  无翻转 ✓")
-    for ni, nj, wmin, wmax in fs:
-        sev = "!! 数量级对翻转" if wmax >= RATIO_BIG else ("（接近平局, 允许）" if wmax < RATIO_TIE else "（中等, 注意）")
-        print(f"  {ni} <-> {nj}: 相对比 [{wmin:.1f}x, {wmax:.1f}x] {sev}")
+    print("\n=== 3) 可承诺的强关系（任意 k 下恒 >=3x）===")
+    for i in range(len(names)):
+        A = names[i]
+        below = []
+        for j in range(len(names)):
+            if i == j:
+                continue
+            B = names[j]
+            if min(wm(k)[A] / max(wm(k)[B], 1e-9) for k in K_KS) >= COMMIT_MIN:
+                below.append(B)
+        if below:
+            print(f"  {A:<22} > {', '.join(below)}")
+    print("  （未列出的对 = 排不出顺序的近似对——允许任意乱序，无大反转）")
 
-    print(f"\n=== k={K_DEFAULT} 默认排序（ACTIVE, 占比）===")
-    tot = sum(w for _, w in ranks[K_DEFAULT])
-    for i, (nm, w) in enumerate(ranks[K_DEFAULT], 1):
-        print(f"{i:>2}. {nm:<22} {w:8.0f}   {100*w/tot:5.1f}%")
+    print("\n=== 4) 各模块占比区间（k∈2..8, ACTIVE）===")
+    for nm in names:
+        shares = []
+        for k in K_MAIN:
+            d = wm(k)
+            tot = sum(d.values())
+            shares.append(100 * d[nm] / tot)
+        print(f"  {nm:<22} {min(shares):5.1f}% .. {max(shares):5.1f}%")
 
-    print("\n=== LISTEN 允许态（不在允许集 -> 整项归零）===")
-    rl = rank(K_DEFAULT, listen=True)
-    tot_l = sum(w for _, w in rl)
-    for nm, w in rl:
-        if w > 0:
-            print(f"   {nm:<22} {w:8.0f}   {100*w/tot_l:5.1f}%")
-    print(f"   允许态合计 {tot_l:.0f}; ACTIVE 合计 {tot:.0f}; 比 {100*tot_l/tot:.1f}%")
-
-    print("\n=== pbuf 使用模型敏感性（α_dat: 1.0 设计 / 0.013 实测无clr）===")
-    for k in [2, 4, 8]:
-        d1 = dict(rank(k)); d2 = dict(rank(k, a_dat_override={"preamble_buf": 0.013}))
-        r1 = [n for n, _ in rank(k)].index('preamble_buf') + 1
-        r2 = [n for n, _ in rank(k, a_dat_override={"preamble_buf": 0.013})].index('preamble_buf') + 1
-        print(f"  k={k}: pbuf {d1['preamble_buf']:7.0f} (设计, 第{r1}位)  vs  {d2['preamble_buf']:5.0f} (实测模型, 第{r2}位)")
+    print("\n=== 5) LISTEN 允许态（不在允许集 -> 整项归零）===")
+    d = wm(K_DEFAULT, listen=True)
+    tot_l = sum(d.values())
+    for nm in names:
+        if d[nm] > 0:
+            print(f"  {nm:<22} {d[nm]:7.0f} 次默认 k 等效")
+    dtot = sum(wm(K_DEFAULT).values())
+    print(f"  允许态/ACTIVE（k=4）: {100*tot_l/dtot:.1f}%")
 
 
 if __name__ == "__main__":
