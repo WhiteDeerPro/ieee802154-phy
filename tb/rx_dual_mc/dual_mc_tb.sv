@@ -349,6 +349,17 @@ module dual_mc_tb #(
     wire in_seg = (fr_n > 0) && (fr_i < fr_n) && (k >= fr_st[fr_i]) && (k < fr_st[fr_i] + seglen_arg);
     longint unsigned a_mf=0, a_pd=0, a_pb=0, a_cd=0, a_sy=0, a_all=0;
     longint unsigned l_mf=0, l_pd=0, l_pb=0, l_cd=0, l_sy=0, l_all=0;
+    // 翻转级小样: 逐拍位翻转计数（$countones(a^d)），对 2 个代表信号——
+    // 把方法链补到"寄存器翻转"一级；smp_cnt = "相位维护"计数器（门控语义下照走）。
+    reg [15:0] tc_s_d = 0, tc_d_d = 0;
+    longint unsigned tc_n=0, tc_sf=0, tc_df=0;
+    always @(posedge clk) begin
+        tc_n  <= tc_n + 1;
+        tc_sf <= tc_sf + $countones(dut.u_fe.g_scan.u_sync.smp_cnt ^ tc_s_d);
+        tc_df <= tc_df + $countones(dut.u_fe.u_deint.smp_cnt ^ tc_d_d);
+        tc_s_d <= dut.u_fe.g_scan.u_sync.smp_cnt;
+        tc_d_d <= dut.u_fe.u_deint.smp_cnt;
+    end
     always @(posedge clk) begin
         if (in_seg) begin
             a_all <= a_all + 1;
@@ -373,6 +384,8 @@ module dual_mc_tb #(
                     a_all, a_mf, a_pd, a_pb, a_cd, a_sy);
             $fwrite(fd_sts, "STATS LISTEN n=%0d mf=%0d pd=%0d pbuf_w=%0d chipdv=%0d sync=%0d\n",
                     l_all, l_mf, l_pd, l_pb, l_cd, l_sy);
+            $fwrite(fd_sts, "STATS FLIP n=%0d sync_smp_flips=%0d deint_smp_flips=%0d\n",
+                    tc_n, tc_sf, tc_df);
             $fclose(fd_sts);
         end
     end
