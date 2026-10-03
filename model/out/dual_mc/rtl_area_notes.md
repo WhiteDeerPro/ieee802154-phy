@@ -1983,3 +1983,25 @@ rand5 多径 / rand6 极端[60-125B, 5-10dB]。
 
 **待办**: ①**cocotb 行为对照**（TDM vs 原版判决序列一致——关键验收）;
 ②若采纳: 接入 `rx_chip_backend` + 全回归。
+
+### §68 zigbee_top 组装（进行中）+ 回环调通历程（2026-10-03）
+
+**组装**: `rtl/top/zigbee_top.sv` = TX(`tx_framer`→`oqpsk_modulator`) + **变频链** + 信道
++ RX(`rx_dual`, RST_EN=1 参考配置); `tb/zigbee_top/` 回环测试（fcs_ok + 载荷断言）。
+变频链 = `cfo_rot`×2: 上变频(+2MHz) → 信道（噪声注入）→ 下变频（净 +100kHz）；
+A/B 消旋 `inc = ±100k`（双旋性通道终于有了用途）。
+
+**调通历程（五轮诊断）**:
+1. 直连失败: `sfd_E=4.3e9 ≪` 门限（3e13）——**用户判"不能直接回环"（正确）**。
+2. 补变频链 + ±100k inc: sfd_E 不变 —— 排除"消旋失配"。
+3. 逐级峰值正常（mf 4513 / chip 2522 / rot 2286）—— 排除"信号小"。
+4. **根因一（关键）**: `scan_phase=5` 而 `phase_fix=0`（latch 脱节）；再挖：
+   **"纯 0 流"使检测器"0≥0"判据退化误触发**（detect 在 t≈1 即升、pd_rise 永不出现）
+   —— **数字直连的"完美 0"是假象：真实链路必有噪声底**（用户判断的机制）。
+5. 信道注入噪声（±64 粗量化）后: **链路推进到 deframer**（A/B 均 `frame_done`，
+   len=7——自由滚动的"假帧"）；**剩余**: SFD 定界未完成（frame_start 未升）,
+   相位 latch 时机（扫描值 5 vs latch 0；时序链 460/972/1484 标定 vs 回环时序）待解。
+
+**待办**: ①对照"场景 snr20 的 sfd_E/定界时刻"（同一 RX）定位差异；
+②latch 链时序（armed/窗口/采用）在回环下的行为定位；③打通后: TDM despreader 换装 + 全回归。
+**资产**: `rtl/top/zigbee_top.sv`（可配 LOOP_SHIFT/MIX_F_HZ/CFO_HZ）+ 回环 tb（5 组诊断可复用）。
