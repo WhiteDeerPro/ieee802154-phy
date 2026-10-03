@@ -13,7 +13,8 @@
 > 待修：固定门限同步在低 SNR 失效（误锁 → 崩溃区，报告 §3 已列修复方向）。
 > TX 链: PSDU 字节流 →（组帧+白化+FCS+扩频+O-QPSK+成形）→ 16 Msps I/Q，
 > 与黄金模型 `modulate_oqpsk_fixed(tx_symbols(psdu))` 全采样一致。
-> RX 链已闭环到帧同步: `rx_matched_filter`(21bit 全精度) / `despreader`(16 路相关 |·|² argmax)
+> RX 链已闭环到帧同步: `rx_matched_filter`(16bit 参考口径；历史 21bit 与
+> "21→14 无损"重规划见 notes §5/§8/§11) / `despreader`(16 路相关 |·|² argmax)
 > / `preamble_sync`（含噪突发帧下 bit-true + 解扩功能断言）
 > / `rx_deframer`（单元级: 符号流还原 PSDU + FCS 失败用例，2/2 PASS）。
 > 链级闭环 `test_rx_chain`（preamble_sync → despreader → rx_deframer 含噪整链还原 PSDU + FCS 校验）通过。
