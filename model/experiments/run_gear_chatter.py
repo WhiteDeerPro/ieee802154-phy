@@ -70,6 +70,8 @@ def main():
         pwr = load_pwr(d)
         fs = np.load(d / 'frames.npz')['frame_start'].astype(int)
         _, est = frame_snr_est(pwr, fs)
+        if snr == 18:
+            est18 = est.copy()
         mean, std = est.mean(), est.std()
         tgrid = mean + np.linspace(-1.5, 1.5, 61)
         rates = scan_threshold(est, tgrid)
@@ -103,6 +105,21 @@ def main():
     fl_h = hyst_flips(est, t_peak + HYST / 2, t_peak - HYST / 2)
     print(f'  ramp est: {est.min():.1f}..{est.max():.1f}（穿越全程）')
     print(f'  无滞回翻转 {fl0} 次 / 59 帧间隔; 滞回(±1dB) {fl_h} 次')
+
+    # C) 滞回带扫描（死区设计曲线）
+    print("\n=== C) 滞回带 h 扫描（翻转率 vs 死区宽度; 静态最坏点与 ramp）===\n")
+    est_ramp = est  # B 段的 est（ramp）
+    t0s = est18.mean()
+    t0r = est_ramp.mean()
+    print(f'{"h(dB)":>6} {"静态最坏(阈值对准均值)":>18} {"ramp 穿越":>12}')
+    for h in [0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0]:
+        if h == 0.0:
+            fs_ = flips_of((est18 > t0s).astype(int)) / (len(est18) - 1)
+            fr_ = flips_of((est_ramp > t0r).astype(int)) / (len(est_ramp) - 1)
+        else:
+            fs_ = hyst_flips(est18, t0s + h / 2, t0s - h / 2) / (len(est18) - 1)
+            fr_ = hyst_flips(est_ramp, t0r + h / 2, t0r - h / 2) / (len(est_ramp) - 1)
+        print(f'{h:>6.1f} {fs_:>18.3f} {fr_:>12.3f}')
 
     with open(OUT / 'chatter_summary.csv', 'w') as f:
         f.write('snr,est_mean,est_std,peak_flip_rate,width_db,hyst_flip_rate\n')
