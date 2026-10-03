@@ -34,7 +34,7 @@ module rx_frontend #(
     parameter integer ALIGN_GATE = 1,  // 1: 网格对齐门（latch 延迟到抽取网格 0/4 拍再生效）
     parameter integer FE_WIN_LEN = 70000, // 帧窗门控长度（pd_rise 开窗; ≥最大帧 69120 + 余量）
     parameter integer FE_WIN_DLY = 0,     // 帧窗延迟开（拍）: >0 = "前 N 片不用"（受限基线实验用）
-    parameter integer VSHIFT = 0          // 能量样本截位（透传 preamble_sync; 0=现状, 12=12位）
+    parameter integer VSHIFT = 8          // 能量样本截位（透传 preamble_sync; 设计默认 16 位）
 ) (
     input  wire               clk,
     input  wire               rst_n,

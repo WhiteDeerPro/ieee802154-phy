@@ -37,7 +37,7 @@ module dual_mc_tb #(
     parameter integer MAX_SMP = 1 << 25,
     parameter integer EXTPH   = 0,     // 1: 相位全外置（SYNC_DIRECT=1 + PHTAB）
     parameter integer RSTEN   = 0,     // 1: 帧到达 → 扫描重启（RST_EN=1）
-    parameter integer VSHIFT  = 0      // 能量样本截位（-pvalue+dual_mc_tb.VSHIFT=12）
+    parameter integer VSHIFT  = 8      // 能量样本截位（设计默认 16 位; 覆盖: -pvalue+dual_mc_tb.VSHIFT=N）
 ) ();
     // —— 时钟 (16 MHz, 自生成) ——
     reg clk = 0;

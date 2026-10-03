@@ -18,7 +18,7 @@ module rx_dual #(
     parameter PW = 24,
     parameter SYNC_DIRECT = 1'b0,     // 0: 扫描取相位; 1: 相位外置（ext_lock_phase）
     parameter RST_EN = 1'b0,          // 1: 帧到达 → 扫描重启（透传 rx_frontend）
-    parameter integer VSHIFT = 0      // 能量样本截位（透传; 0=现状, 12=12位）
+    parameter integer VSHIFT = 8      // 能量样本截位（透传; 设计默认 16 位）
 ) (
     input  wire               clk,
     input  wire               rst_n,

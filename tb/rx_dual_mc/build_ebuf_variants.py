@@ -33,7 +33,7 @@ def build_if_missing(out, extra=()):
 
 # ebuf 截位变体（preamble_sync VSHIFT 参数; 见 notes §57/§59）
 bins = [
-    ('simv_ebuf_v0',  []),                                    # VSHIFT=0（等价性基线）
+    ('simv_ebuf_v0',  ['-pvalue+dual_mc_tb.VSHIFT=0']),       # VSHIFT=0（等价性基线; 显式回满精度）
     ('simv_ebuf_v12', ['-pvalue+dual_mc_tb.VSHIFT=12']),      # 12 位落点（v12）
     ('simv_ebuf_v8',  ['-pvalue+dual_mc_tb.VSHIFT=8']),       # 16 位档（两个整 8 位段）
     ('simv_ebuf_v13', ['-pvalue+dual_mc_tb.VSHIFT=13']),      # 11 位（边界钉定）

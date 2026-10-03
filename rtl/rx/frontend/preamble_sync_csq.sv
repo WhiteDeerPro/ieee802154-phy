@@ -25,7 +25,7 @@ module preamble_sync #(
     parameter NCNT        = 16,   // 连续合格片数（重叠评估, ≈持久 47 片）
     parameter CREF        = 128,  // 相位刷新周期（拍）
     parameter SFD_EN     = 1'b1, // 1: 生成 SFD 窗/frame_start（单通道）; 0: 裁剪（共享前端下输出悬空）
-    parameter integer VSHIFT = 0   // 能量样本额外截位: 0=现状(24位); 12=12位落点
+    parameter integer VSHIFT = 8   // 能量样本截位: 设计默认 16 位(8); 0=满精度(24)实验; 12=12位
 ) (
     input  wire                    clk,
     input  wire                    rst_n,
