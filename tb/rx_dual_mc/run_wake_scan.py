@@ -11,6 +11,8 @@
       en=0 冻结处理、smp_cnt 照走（"相位维护"例外）；L=0 现状等价（60/60 复现）。
       [弃用] 首版 tb force u_sync.dv_in 方案：VCS 折叠共享 dv 网，连带冻结 deint，无效。
       WONCE 单次缺口实验：手动 +WDLY=<L> +WONCE=1 → ev_snr20_wonce<L>.txt（§43）。
+      冷启动验证（wake_clr 复位）：+WDLY=<L> +WONCE=1 +WCLR=1 → ev_snr20_wonce<L>_wclr.txt
+      （§43 “冷启动验证”节：小缺口 3/5/9 拍 = 试探帧弃 + 正式帧 58/58 达成）。
 
 扫描：L × {snr20, snr6} → FRMA(FCS=1) 成功帧数（口径同边界回归）。
       默认点含小 L 段（0,2,4,8,16,32）——L=16（关17拍）为孤立无损窗口，关键数据点。

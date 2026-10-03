@@ -32,6 +32,7 @@ module preamble_sync #(
     input  wire signed [W-1:0]     q_in,
     input  wire                    dv_in,
     input  wire                    en = 1'b1,   // PMU 处理门控 (docs/22 §10.6 ①): 0=冻结处理; smp_cnt 照走(相位维护)
+    input  wire                    wake_clr = 1'b0, // PMU 唤醒冷启动: 单拍清账=局部复位（清 eacc 回绕等账; 默认0=现状）
     input  wire [47:0]             ph_thresh,
     input  wire [47:0]             sfd_thresh,
     input  wire                    frame_done,
@@ -170,7 +171,7 @@ module preamble_sync #(
     integer pp, pj;
 
     always @(posedge clk) begin
-        if (!rst_n) begin
+        if (!rst_n || wake_clr) begin
             state       <= ST_SCAN;
             smp_cnt     <= 16'd0;
             ewcnt       <= 16'd0;

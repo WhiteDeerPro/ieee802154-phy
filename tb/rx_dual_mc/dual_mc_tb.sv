@@ -95,11 +95,13 @@ module dual_mc_tb #(
     reg  [11:0]        pbuf_addr = 12'd0;
     reg                pbuf_clr  = 1'b0;
     reg  [16:0]        wk_dly    = 17'd0;   // PMU 唤醒延迟（+WDLY; 驱动 dut.wake_dly）
+    reg                wclr_r    = 1'b0;    // PMU 冷启动清账（+WCLR; 驱动 dut.wake_clr）
 
     rx_dual #(.W(16), .PW(24), .SYNC_DIRECT(EXTPH != 0), .RST_EN(RSTEN != 0)) dut (
         .clk(clk), .rst_n(rst_n),
         .adc_i(i_in), .adc_q(q_in), .adc_dv(dv_in),
         .wake_dly(wk_dly),
+        .wake_clr(wclr_r),
         .ph_thresh(ph_th), .sfd_thresh(sfd_th),
         .sfd_norm_th(norm_th),
         .ext_lock_en(ext_en), .ext_lock_phase(ext_ph), .rot_load(1'b0),
@@ -290,6 +292,17 @@ module dual_mc_tb #(
         void'($value$plusargs("WONCE=%d", wonce_arg));
         wk_dly = wdly_arg[16:0];
     end
+
+`ifdef WTRACE_EN
+    // —— PMU 冷启动验证（2026-10-03）: +WCLR=1 ——
+    // 冻结窗结束（wk_open 上升沿）→ 单拍 wake_clr → sync 局部复位（“唤醒=复位”语义）。
+    // 对照: 无 WCLR 时冻结污染跨帧（延迟爆发；旧数据 wonce4=12/60）。
+    longint unsigned wclr_arg = 0;
+    initial void'($value$plusargs("WCLR=%d", wclr_arg));
+    always @(posedge clk)
+        if (wclr_arg != 0) wclr_r <= $rose(dut.u_fe.g_scan.wk_open);
+        else               wclr_r <= 1'b0;
+`endif
 
 `ifdef WTRACE_EN
     // —— PMU 实验: sync 内部追踪（+WTRACE=<path> [WT1=<k_end>]）——

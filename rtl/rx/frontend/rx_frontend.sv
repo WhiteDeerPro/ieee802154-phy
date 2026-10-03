@@ -38,6 +38,7 @@ module rx_frontend #(
     input  wire               clk,
     input  wire               rst_n,
     input  wire [16:0]        wake_dly = 17'd0,  // PMU 唤醒延迟（端口化; docs/22 §10.6 ③）: pd_rise 后 N 拍开 sync 处理门
+    input  wire               wake_clr = 1'b0,   // PMU 唤醒冷启动（透传 sync; 默认0=现状）
     // ---- ADC ----
     input  wire signed [11:0] adc_i,
     input  wire signed [11:0] adc_q,
@@ -156,6 +157,7 @@ module rx_frontend #(
                 .clk(clk), .rst_n(rst_n),
                 .i_in(mf_i), .q_in(mf_q), .dv_in(mf_dv),
                 .en(sync_en),
+                .wake_clr(wake_clr),
                 .ph_thresh(ph_thresh), .sfd_thresh(sfd_thresh),
                 .frame_done(1'b0),
                 .ext_lock_en(1'b0), .ext_lock_phase(4'd0),
